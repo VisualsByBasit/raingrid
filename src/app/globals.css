@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #07090c;
+  --color-panel: #0d1117;
+  --color-line: #1c2430;
+  --color-fg: #e6edf3;
+  --color-muted: #8b98a5;
+  --color-tank: #38bdf8;
+  --color-ground: #34d399;
+  --color-drain: #fb923c;
+  --color-lost: #475569;
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.glass {
+  background: color-mix(in oklab, var(--color-panel) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-line);
+}
+
+.maplibregl-ctrl-attrib {
+  background: rgba(7, 9, 12, 0.7) !important;
+  color: var(--color-muted) !important;
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-muted) !important;
+}
+.maplibregl-ctrl-group {
+  background: var(--color-panel) !important;
+  border: 1px solid var(--color-line);
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--color-line) !important;
+}
+.maplibregl-ctrl-icon {
+  filter: invert(1) opacity(0.8);
+}
+
+input[type="range"] {
+  accent-color: var(--color-tank);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
