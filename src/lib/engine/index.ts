@@ -11,17 +11,38 @@ export interface RoofTypeSpec {
   high: number;
 }
 
-// Runoff coefficient ranges. Standard literature ranges, to be verified
-// against CGWB / PCRWR manuals (see ASSUMPTIONS for citations).
+// Roof-catchment ranges from the Indian Railways Institute's 2022 rainwater
+// harvesting manual. The default RCC value remains 0.8 so the worked example
+// in the project plan is reproducible.
 export const ROOF_TYPES: Record<RoofType, RoofTypeSpec> = {
-  rcc: { label: "Flat concrete (RCC)", low: 0.75, mid: 0.8, high: 0.9 },
-  metal: { label: "Metal sheet", low: 0.85, mid: 0.9, high: 0.95 },
+  rcc: { label: "Flat concrete (RCC)", low: 0.6, mid: 0.8, high: 0.8 },
+  metal: { label: "Metal sheet", low: 0.7, mid: 0.8, high: 0.9 },
 };
+
+export const ENGINE_SOURCES = {
+  runoff: {
+    label: "Indian Railways Institute, Rain Water Harvesting manual (2022)",
+    url: "https://iricen.gov.in/iricen/books_jquery/rain_water_harvesting.pdf",
+    note: "Roof runoff coefficients: concrete 0.6–0.8; metal sheet 0.7–0.9.",
+  },
+  firstFlush: {
+    label: "Lebanon Ministry of Energy and Water / UNDP national guideline",
+    url: "https://www.pseau.org/outils/ouvrages/mee_pnud_national_guideline_for_rainwater_harvesting_systems_2016.pdf",
+    note: "Sizes a first-flush tank to divert about 1.5 mm of rainfall.",
+  },
+  unit: {
+    label: "Australian Government, YourHome rainwater guide",
+    url: "https://www.yourhome.gov.au/water/rainwater",
+    note: "1 mm of rain on 1 m² of roof equals 1 litre before losses.",
+  },
+} as const;
 
 export const DEFAULTS = {
   roofType: "rcc" as RoofType,
   firstFlushMm: 1.5,
-  usableShare: 0.85,
+  // Start from the full measured footprint. The user reduces this for solar
+  // panels, stairs, tanks, or roof sections that do not drain to the system.
+  usableShare: 1,
   tankLitres: 2000,
   hasRecharge: false,
 };
@@ -38,7 +59,9 @@ export interface RainInput {
 
 export interface Split {
   tank: number;
-  ground: number;
+  // Water routed toward a recharge system. This is potential recharge, not a
+  // claim that the full amount infiltrates; that requires site-specific tests.
+  rechargePotential: number;
   drain: number; // overflow + first flush + water from the unused roof part
   lost: number; // soaked into the roof / evaporated / splashed
 }
@@ -48,7 +71,7 @@ export interface RainResult {
   firstFlush: number; // diverted before storage
   net: { low: number; mid: number; high: number }; // harvestable after losses
   split: Split; // what happens to the gross water, using the mid coefficient
-  splitRange: { tankLow: number; tankHigh: number; groundLow: number; groundHigh: number };
+  splitRange: { tankLow: number; tankHigh: number; rechargeLow: number; rechargeHigh: number };
   inputs: Required<RainInput>;
 }
 
@@ -57,9 +80,9 @@ const safe = (v: number) => (Number.isFinite(v) ? v : 0);
 
 function route(net: number, tank: number, hasRecharge: boolean) {
   const stored = Math.min(net, tank);
-  const ground = hasRecharge ? net - stored : 0;
-  const overflow = net - stored - ground;
-  return { stored, ground, overflow };
+  const rechargePotential = hasRecharge ? net - stored : 0;
+  const overflow = net - stored - rechargePotential;
+  return { stored, rechargePotential, overflow };
 }
 
 export function calculate(input: RainInput): RainResult {
@@ -98,15 +121,15 @@ export function calculate(input: RainInput): RainResult {
     net,
     split: {
       tank: mid.stored,
-      ground: mid.ground,
+      rechargePotential: mid.rechargePotential,
       drain: mid.overflow + firstFlush + unusedRoofRunoff,
       lost,
     },
     splitRange: {
       tankLow: lo.stored,
       tankHigh: hi.stored,
-      groundLow: lo.ground,
-      groundHigh: hi.ground,
+      rechargeLow: lo.rechargePotential,
+      rechargeHigh: hi.rechargePotential,
     },
     inputs,
   };
@@ -131,19 +154,36 @@ export function formatRange(lo: number, hi: number): string {
   return `${a.toLocaleString("en-US")} to ${b.toLocaleString("en-US")} L`;
 }
 
+// Round a displayed water split while preserving the rounded gross total.
+// Independent rounding can otherwise make the visible parts disagree by 100 L.
+export function roundSplitForDisplay(split: Split, gross: number): Split {
+  const keys: (keyof Split)[] = ["tank", "rechargePotential", "drain", "lost"];
+  const quantum = gross > 0 && gross < 100 ? 10 : 100;
+  const target = Math.max(0, Math.round(gross / quantum) * quantum);
+  const rows = keys.map((key, index) => {
+    const value = Math.max(0, safe(split[key]));
+    const floor = Math.floor(value / quantum) * quantum;
+    return { key, index, floor, fraction: value / quantum - Math.floor(value / quantum) };
+  });
+  const remaining = Math.max(0, Math.round((target - rows.reduce((sum, row) => sum + row.floor, 0)) / quantum));
+  const ranked = [...rows].sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+  for (let i = 0; i < remaining; i++) ranked[i % ranked.length].floor += quantum;
+  return Object.fromEntries(rows.map((row) => [row.key, row.floor])) as unknown as Split;
+}
+
 // Street aggregation: sums results roof by roof (tanks are per roof).
 export function aggregate(results: RainResult[]) {
   return results.reduce(
     (acc, r) => ({
       gross: acc.gross + r.gross,
       tank: acc.tank + r.split.tank,
-      ground: acc.ground + r.split.ground,
+      rechargePotential: acc.rechargePotential + r.split.rechargePotential,
       drain: acc.drain + r.split.drain,
       lost: acc.lost + r.split.lost,
       netLow: acc.netLow + r.net.low,
       netHigh: acc.netHigh + r.net.high,
     }),
-    { gross: 0, tank: 0, ground: 0, drain: 0, lost: 0, netLow: 0, netHigh: 0 },
+    { gross: 0, tank: 0, rechargePotential: 0, drain: 0, lost: 0, netLow: 0, netHigh: 0 },
   );
 }
 
@@ -151,6 +191,7 @@ export function aggregate(results: RainResult[]) {
 // Returns Infinity when the roof can't fill it (zero catchment).
 export function mmToFillTank(input: RainInput): number {
   const c = calculate({ ...input, rainMm: 0 }).inputs;
+  if (c.tankLitres <= 0) return 0;
   const perMm = c.areaM2 * c.usableShare * ROOF_TYPES[c.roofType].mid;
   if (perMm <= 0) return Number.POSITIVE_INFINITY;
   return c.firstFlushMm + c.tankLitres / perMm;

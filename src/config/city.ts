@@ -32,7 +32,7 @@ export const CITY = {
     },
   ],
   whyNow: {
-    text: "In March 2026 CDA made rooftop rainwater harvesting mandatory under its building bylaws. RAIN//GRID does not wait for enforcement: it shows every household what its own roof can do.",
+    text: "In March 2026 CDA called for strict compliance with Islamabad's existing rooftop rainwater-harvesting requirement. RAIN//GRID does not wait for enforcement: it shows every household what its own roof can do.",
     source: {
       label: "CDA",
       url: "https://www.cda.gov.pk/cdaImagesGallery/cda-accelerates-water-projects-mandates-rainwater-harvesting-in-islamabad",

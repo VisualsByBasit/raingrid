@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion";
 import { CITY } from "@/config/city";
-import { DEFAULTS, ROOF_TYPES } from "@/lib/engine";
-import { GAUGES, PRESETS, STORMS } from "@/data/storms";
+import { DEFAULTS, ENGINE_SOURCES, ROOF_TYPES } from "@/lib/engine";
+import { GAUGES, MONTHLY_NORMALS, NORMALS_SOURCE, PRESETS, STORMS } from "@/data/storms";
 
 export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
   return (
@@ -44,13 +44,40 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
               {t.label}: runoff coefficient {t.mid} (range {t.low} to {t.high})
             </li>
           ))}
-          <li>First flush diverted: {DEFAULTS.firstFlushMm} mm per storm (dirty first water, never stored)</li>
-          <li>Usable roof share: {Math.round(DEFAULTS.usableShare * 100)}% by default (tanks, stairs, solar panels)</li>
+          <li>
+            <a className="underline underline-offset-2 hover:text-tank" href={ENGINE_SOURCES.runoff.url} target="_blank" rel="noreferrer">
+              Runoff source ↗
+            </a>{" "}
+            {ENGINE_SOURCES.runoff.note}
+          </li>
+          <li>
+            First flush diverted: {DEFAULTS.firstFlushMm} mm per storm. {ENGINE_SOURCES.firstFlush.note}{" "}
+            <a className="underline underline-offset-2 hover:text-tank" href={ENGINE_SOURCES.firstFlush.url} target="_blank" rel="noreferrer">
+              National guideline ↗
+            </a>
+          </li>
+          <li>Usable roof share: 100% until you reduce it for tanks, stairs, solar panels, or sections not connected to the system.</li>
           <li>Tank: {DEFAULTS.tankLitres.toLocaleString()} L by default. You can change it.</li>
-          <li>Recharge assumes a well can take the overflow. Real capacity depends on your soil and needs a professional.</li>
+          <li>“Routed toward recharge” is potential routing, not measured infiltration. Soil, design and well capacity need professional assessment.</li>
           <li>Results are shown as ranges and rounded to the nearest 100 L.</li>
           <li>Harvested rainwater is for gardening, washing, flushing, cleaning and recharge. Not for drinking.</li>
         </ul>
+
+        <h3 className="mt-6 font-semibold">Year view · 1991–2020 rainfall normal</h3>
+        <div className="mt-3 grid h-32 grid-cols-12 items-end gap-1" aria-label="Monthly rainfall normals bar chart">
+          {MONTHLY_NORMALS.map((month) => (
+            <div key={month.month} className="flex h-full flex-col items-center justify-end gap-1" title={`${month.month}: ${month.mm} mm`}>
+              <div className="w-full rounded-t bg-tank/70" style={{ height: `${Math.max(3, (month.mm / 317) * 100)}%` }} />
+              <span className="num text-[8px] text-muted">{month.month.slice(0, 1)}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          July–September: 763.0 mm · annual: 1,261.2 mm. Source: {" "}
+          <a className="underline underline-offset-2 hover:text-tank" href={NORMALS_SOURCE.url} target="_blank" rel="noreferrer">
+            {NORMALS_SOURCE.label} ↗
+          </a>
+        </p>
 
         <h3 className="mt-6 font-semibold">Storms</h3>
         <ul className="mt-2 space-y-2 text-muted">
@@ -81,7 +108,7 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
 
         <h3 className="mt-6 font-semibold">City facts</h3>
         <ul className="mt-2 space-y-1.5 text-muted">
-          {[...CITY.facts, { stat: "CDA", text: "Rooftop harvesting made mandatory, March 2026", source: CITY.whyNow.source }].map((f) => (
+          {[...CITY.facts, { stat: "CDA", text: "called for strict compliance with the existing requirement, March 2026", source: CITY.whyNow.source }].map((f) => (
             <li key={f.stat}>
               <a className="underline underline-offset-2 hover:text-tank" href={f.source.url} target="_blank" rel="noreferrer">
                 {f.source.label} ↗

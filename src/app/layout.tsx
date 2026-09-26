@@ -8,7 +8,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "RAIN//GRID - Replay Islamabad's storms on your roof",
   description:
-    "Pick your roof in Islamabad, replay a real recorded storm, and see where every litre went: tank, ground or drain. Then bring your street.",
+    "Pick your roof in Islamabad, replay a real recorded storm, and see where every litre was stored, routed toward recharge, or drained. Then bring your street.",
   openGraph: {
     title: "RAIN//GRID",
     description: "Replay Islamabad's real monsoon storms on your own roof and see where every litre goes.",

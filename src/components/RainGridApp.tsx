@@ -8,7 +8,7 @@ import { ALL_SECTORS, searchSectors, type Sector } from "@/data/sectors";
 import { PRESETS, STORMS, nearestReading } from "@/data/storms";
 import { DEFAULTS, ROOF_TYPES, aggregate, calculate, type RoofType } from "@/lib/engine";
 import { areaOf, centroidOf, newRoofId, type Roof } from "@/lib/roof";
-import { decodeShare, encodeShare } from "@/lib/share";
+import { choiceFromKey, choiceKey, decodeShare, encodeShare, type StormChoice } from "@/lib/share";
 import type { FlyTarget } from "./MapView";
 import RainCanvas from "./RainCanvas";
 import Intro from "./Intro";
@@ -16,11 +16,6 @@ import ResultPanel from "./ResultPanel";
 import SourcesDrawer from "./SourcesDrawer";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
-
-export type StormChoice =
-  | { kind: "storm"; id: string }
-  | { kind: "preset"; id: string }
-  | { kind: "custom"; mm: number };
 
 export interface Setup {
   roofType: RoofType;
@@ -43,21 +38,6 @@ export function rainFor(choice: StormChoice, lat: number, lng: number) {
     label: s.dateLabel,
     gaugeNote: `Nearest reported gauge: ${r.gauge.name} (${r.gauge.note}), about ${r.km < 1 ? "<1" : Math.round(r.km)} km away`,
   };
-}
-
-export function choiceKey(c: StormChoice) {
-  return c.kind === "custom" ? `mm:${c.mm}` : c.id;
-}
-
-function choiceFromKey(k: string | null): StormChoice | null {
-  if (!k) return null;
-  if (k.startsWith("mm:")) {
-    const mm = Number(k.slice(3));
-    return Number.isFinite(mm) && mm >= 0 ? { kind: "custom", mm } : null;
-  }
-  if (STORMS.some((s) => s.id === k)) return { kind: "storm", id: k };
-  if (PRESETS.some((p) => p.id === k)) return { kind: "preset", id: k };
-  return null;
 }
 
 type Phase = "idle" | "raining" | "done";
@@ -112,7 +92,11 @@ export default function RainGridApp() {
     const run = (hasRecharge: boolean) =>
       aggregate(roofs.map((r) => calculate({ areaM2: r.areaM2, rainMm: rainFor(choice, r.lat, r.lng).mm, ...setup, hasRecharge })));
     const withWells = run(true);
-    return { ...run(setup.hasRecharge), count: roofs.length, keptWithWells: withWells.tank + withWells.ground };
+    return {
+      ...run(setup.hasRecharge),
+      count: roofs.length,
+      potentialWithWells: withWells.tank + withWells.rechargePotential,
+    };
   }, [roofs, choice, setup]);
 
   const resetResult = () => setPhase("idle");

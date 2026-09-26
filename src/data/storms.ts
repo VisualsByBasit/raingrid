@@ -91,20 +91,51 @@ export interface Preset {
   source: { label: string; url: string };
 }
 
+export interface MonthlyNormal {
+  month: string;
+  mm: number;
+}
+
+export const NORMALS_SOURCE = {
+  label: "WMO 1991–2020 normals via NOAA NCEI · Islamabad Airport 41571",
+  url: "https://www.nodc.noaa.gov/archive/arc0216/0253808/4.4/data/0-data/Region-2-WMO-Normals-9120/Pakistan/CSV/Islamabad_41571.csv",
+};
+
+export const MONTHLY_NORMALS: MonthlyNormal[] = [
+  { month: "Jan", mm: 55.2 },
+  { month: "Feb", mm: 93.4 },
+  { month: "Mar", mm: 95.2 },
+  { month: "Apr", mm: 58.1 },
+  { month: "May", mm: 39.9 },
+  { month: "Jun", mm: 78.4 },
+  { month: "Jul", mm: 310.6 },
+  { month: "Aug", mm: 317.0 },
+  { month: "Sep", mm: 135.4 },
+  { month: "Oct", mm: 34.4 },
+  { month: "Nov", mm: 17.7 },
+  { month: "Dec", mm: 25.9 },
+];
+
+const sumNormal = (months: MonthlyNormal[]) =>
+  Math.round(months.reduce((sum, month) => sum + month.mm, 0) * 10) / 10;
+
+export const ANNUAL_NORMAL_MM = sumNormal(MONTHLY_NORMALS);
+export const MONSOON_NORMAL_MM = sumNormal(MONTHLY_NORMALS.slice(6, 9));
+
 export const PRESETS: Preset[] = [
   {
     id: "monsoon-quarter",
     title: "A typical monsoon (Jul to Sep)",
-    mm: 763,
+    mm: MONSOON_NORMAL_MM,
     blurb: "Average July to September rainfall.",
-    source: { label: "Wego, PMD-based averages", url: "https://blog.wego.com/monsoon-in-pakistan/" },
+    source: NORMALS_SOURCE,
   },
   {
     id: "average-year",
     title: "An average year",
-    mm: 1250,
+    mm: ANNUAL_NORMAL_MM,
     blurb: "Average annual rainfall, 1991 to 2020 normals.",
-    source: { label: "Climates to Travel, 1991-2020", url: "https://www.climatestotravel.com/climate/pakistan/islamabad" },
+    source: NORMALS_SOURCE,
   },
 ];
 

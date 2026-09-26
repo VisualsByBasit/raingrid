@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, calculate, formatRange, mmToFillTank, roundL } from "./index";
+import { aggregate, calculate, formatRange, mmToFillTank, roundL, roundSplitForDisplay } from "./index";
 
 describe("rain engine", () => {
   it("1 mm on 1 m2 is exactly 1 litre gross", () => {
@@ -11,19 +11,19 @@ describe("rain engine", () => {
     const r = calculate({ areaM2: 250, rainMm: 175, usableShare: 1, firstFlushMm: 1.5 });
     expect(r.net.mid).toBeCloseTo(34700, 0);
     expect(r.split.tank).toBe(2000);
-    expect(r.split.ground).toBe(0);
+    expect(r.split.rechargePotential).toBe(0);
   });
 
   it("sends overflow to the ground only when a recharge well exists", () => {
     const r = calculate({ areaM2: 250, rainMm: 175, usableShare: 1, hasRecharge: true });
     expect(r.split.tank).toBe(2000);
-    expect(r.split.ground).toBeCloseTo(34700 - 2000, 0);
+    expect(r.split.rechargePotential).toBeCloseTo(34700 - 2000, 0);
   });
 
   it("conserves water: tank + ground + drain + lost = gross", () => {
     for (const hasRecharge of [true, false]) {
       const r = calculate({ areaM2: 180, rainMm: 60, usableShare: 0.85, tankLitres: 3000, hasRecharge });
-      const sum = r.split.tank + r.split.ground + r.split.drain + r.split.lost;
+      const sum = r.split.tank + r.split.rechargePotential + r.split.drain + r.split.lost;
       expect(sum).toBeCloseTo(r.gross, 6);
     }
   });
@@ -61,6 +61,12 @@ describe("rain engine", () => {
     expect(formatRange(32_540, 39_050)).toBe("32,500 to 39,100 L");
   });
 
+  it("rounds displayed split parts to the displayed gross total", () => {
+    const r = calculate({ areaM2: 250, rainMm: 157 });
+    const split = roundSplitForDisplay(r.split, r.gross);
+    expect(Object.values(split).reduce((sum, value) => sum + value, 0)).toBe(roundL(r.gross));
+  });
+
   it("aggregates a street", () => {
     const a = calculate({ areaM2: 200, rainMm: 100 });
     const b = calculate({ areaM2: 150, rainMm: 100 });
@@ -77,5 +83,8 @@ describe("tank fill", () => {
   });
   it("zero area never fills", () => {
     expect(mmToFillTank({ areaM2: 0, rainMm: 0 })).toBe(Number.POSITIVE_INFINITY);
+  });
+  it("a zero-capacity tank is full from 0 mm", () => {
+    expect(mmToFillTank({ areaM2: 250, rainMm: 0, tankLitres: 0 })).toBe(0);
   });
 });

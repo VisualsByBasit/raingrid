@@ -46,7 +46,7 @@ export default function Intro({
           animate={{ opacity: 1, transition: { delay: 0.25 } }}
           className="max-w-xl text-base text-muted md:text-lg"
         >
-          Pick your roof, replay a real recorded storm, and follow every litre: into a tank, into the ground, or into the
+          Pick your roof, replay a real recorded storm, and follow every litre: into a tank, routed toward recharge, or into the
           nullah. Then bring your street.
         </motion.p>
 

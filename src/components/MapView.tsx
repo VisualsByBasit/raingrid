@@ -1,7 +1,7 @@
 "use client";
 
 import { Map as MLMap, NavigationControl, AttributionControl, setWorkerUrl } from "maplibre-gl";
-import type { GeoJSONSource, MapGeoJSONFeature } from "maplibre-gl";
+import type { GeoJSONSource, MapGeoJSONFeature, StyleSpecification } from "maplibre-gl";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { CITY } from "@/config/city";
@@ -27,8 +27,48 @@ interface Props {
   raining: boolean;
 }
 
-const STYLE = "https://tiles.openfreemap.org/styles/dark";
 const BUILDING_LAYER = "rg-buildings";
+const STATIC_BUILDING_LAYER = "rg-static-buildings";
+
+// Keep the style itself local and small. If OpenFreeMap's vector source is
+// unavailable, the dark background and prebaked OSM demo footprints still work.
+const STYLE: StyleSpecification = {
+  version: 8,
+  name: "RAIN//GRID resilient dark map",
+  sources: {
+    openmaptiles: { type: "vector", url: "https://tiles.openfreemap.org/planet" },
+    "static-buildings": { type: "geojson", data: "/data/footprints/islamabad-demo.geojson" },
+  },
+  layers: [
+    { id: "background", type: "background", paint: { "background-color": "#07090c" } },
+    {
+      id: "water",
+      type: "fill",
+      source: "openmaptiles",
+      "source-layer": "water",
+      paint: { "fill-color": "#0b2535", "fill-opacity": 0.9 },
+    },
+    {
+      id: "roads",
+      type: "line",
+      source: "openmaptiles",
+      "source-layer": "transportation",
+      paint: { "line-color": "#27313d", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.4, 17, 2.2] },
+    },
+    {
+      id: STATIC_BUILDING_LAYER,
+      type: "fill-extrusion",
+      source: "static-buildings",
+      minzoom: 12,
+      paint: {
+        "fill-extrusion-color": "#1a2330",
+        "fill-extrusion-height": ["coalesce", ["get", "height"], 6],
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 0.9,
+      },
+    },
+  ],
+};
 
 // Served from /public (see scripts/copy-maplibre-worker.mjs).
 setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
@@ -60,24 +100,19 @@ export default function MapView(props: Props) {
     m.addControl(
       new AttributionControl({
         compact: true,
-        customAttribution: "Rain data: PMD via APP, ARY, ProPakistani, Arab News",
+        customAttribution: "Rain data: PMD via APP, ARY, ProPakistani, Arab News · Static footprints: © OpenStreetMap contributors",
       }),
       "bottom-left",
     );
 
     m.on("error", (e) => {
       const msg = String((e as unknown as { error?: { message?: string } }).error?.message ?? "");
-      if (/style|Failed to fetch|NetworkError/i.test(msg) && !ready.current) latest.current.onMapError();
+      if (/webgl context|failed to initialize webgl/i.test(msg)) latest.current.onMapError();
     });
 
     m.on("load", () => {
-      // Hide the basemap's own building layers; we draw our own.
-      for (const layer of m.getStyle().layers ?? []) {
-        if ("source-layer" in layer && layer["source-layer"] === "building") {
-          m.setLayoutProperty(layer.id, "visibility", "none");
-        }
-      }
-      // Buildings come from the basemap's OpenMapTiles vector source.
+      // Live buildings come from OpenFreeMap. The static layer underneath is
+      // available independently for the five demo sectors.
       if (m.getSource("openmaptiles")) {
         m.addLayer({
           id: BUILDING_LAYER,
@@ -151,8 +186,8 @@ export default function MapView(props: Props) {
         m.getCanvas().style.cursor = "crosshair";
         return;
       }
-      if (!m.getLayer(BUILDING_LAYER)) return;
-      const hit = m.queryRenderedFeatures(e.point, { layers: [BUILDING_LAYER] });
+      const layers = selectableBuildingLayers(m);
+      const hit = layers.length ? m.queryRenderedFeatures(e.point, { layers }) : [];
       m.getCanvas().style.cursor = hit.length ? "pointer" : "";
     });
 
@@ -163,14 +198,15 @@ export default function MapView(props: Props) {
         p.onDrawPoint([e.lngLat.lng, e.lngLat.lat]);
         return;
       }
-      if (!m.getLayer(BUILDING_LAYER)) return;
-      const hits = m.queryRenderedFeatures(e.point, { layers: [BUILDING_LAYER] });
+      const layers = selectableBuildingLayers(m);
+      if (!layers.length) return;
+      const hits = m.queryRenderedFeatures(e.point, { layers });
       if (!hits.length) return;
       const f = hits[0];
       let pieces: MapGeoJSONFeature[] = [f];
       if (f.id !== undefined && f.id !== null) {
         pieces = m
-          .queryRenderedFeatures({ layers: [BUILDING_LAYER] })
+          .queryRenderedFeatures({ layers })
           .filter((x) => x.id === f.id);
         if (!pieces.length) pieces = [f];
       }
@@ -183,7 +219,7 @@ export default function MapView(props: Props) {
       const area = areaOf(merged);
       if (area < 8) return;
       const [lng, lat] = centroidOf(merged.geometry);
-      const h = Number(f.properties?.render_height ?? 6);
+      const h = Number(f.properties?.render_height ?? f.properties?.height ?? 6);
       p.onPick({
         id: newRoofId("b"),
         label: "Selected roof",
@@ -275,4 +311,8 @@ export default function MapView(props: Props) {
 
 function emptyFC(): FeatureCollection {
   return { type: "FeatureCollection", features: [] };
+}
+
+function selectableBuildingLayers(map: MLMap): string[] {
+  return [BUILDING_LAYER, STATIC_BUILDING_LAYER].filter((layer) => Boolean(map.getLayer(layer)));
 }

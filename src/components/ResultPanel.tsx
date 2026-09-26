@@ -3,21 +3,31 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { PRESETS, STORMS, nearestReading } from "@/data/storms";
-import { formatL, formatRange, mmToFillTank, roundL, type RainResult, type RoofType, type RoofTypeSpec } from "@/lib/engine";
+import {
+  formatL,
+  formatRange,
+  mmToFillTank,
+  roundL,
+  roundSplitForDisplay,
+  type RainResult,
+  type RoofType,
+  type RoofTypeSpec,
+} from "@/lib/engine";
 import type { Roof } from "@/lib/roof";
+import type { StormChoice } from "@/lib/share";
 import { useCountUp } from "@/lib/useCountUp";
-import type { Setup, StormChoice } from "./RainGridApp";
+import type { Setup } from "./RainGridApp";
 
 interface Street {
   gross: number;
   tank: number;
-  ground: number;
+  rechargePotential: number;
   drain: number;
   lost: number;
   netLow: number;
   netHigh: number;
   count: number;
-  keptWithWells: number;
+  potentialWithWells: number;
 }
 
 interface Props {
@@ -237,7 +247,7 @@ export default function ResultPanel(p: Props) {
                 <label className="flex items-center justify-between gap-3">
                   <span>
                     <span className="block">Recharge well</span>
-                    <span className="text-xs text-muted">Overflow goes into the ground instead of the drain</span>
+                    <span className="text-xs text-muted">Routes overflow toward recharge; actual infiltration needs a site assessment</span>
                   </span>
                   <input
                     type="checkbox"
@@ -342,14 +352,22 @@ function Result({ result, phase, rainLabel }: { result: RainResult; phase: strin
     : 0;
   const fillMm = mmToFillTank(result.inputs);
   const rainMm = result.inputs.rainMm;
+  const displaySplit = roundSplitForDisplay(result.split, result.gross);
 
   if (phase === "idle") return null;
 
   const parts = [
-    { key: "tank", label: "Stored in your tank", v: result.split.tank, color: "bg-tank", text: "text-tank" },
-    { key: "ground", label: "Sent into the ground", v: result.split.ground, color: "bg-ground", text: "text-ground" },
-    { key: "drain", label: "Lost to the drain", v: result.split.drain, color: "bg-drain", text: "text-drain" },
-    { key: "lost", label: "Soaked or evaporated", v: result.split.lost, color: "bg-lost", text: "text-muted" },
+    { key: "tank", label: "Stored in your tank", v: result.split.tank, display: displaySplit.tank, color: "bg-tank", text: "text-tank" },
+    {
+      key: "rechargePotential",
+      label: "Routed toward recharge (potential)",
+      v: result.split.rechargePotential,
+      display: displaySplit.rechargePotential,
+      color: "bg-ground",
+      text: "text-ground",
+    },
+    { key: "drain", label: "Routed to the drain", v: result.split.drain, display: displaySplit.drain, color: "bg-drain", text: "text-drain" },
+    { key: "lost", label: "Roof and collection losses", v: result.split.lost, display: displaySplit.lost, color: "bg-lost", text: "text-muted" },
   ];
   const total = Math.max(1, result.gross);
 
@@ -384,26 +402,35 @@ function Result({ result, phase, rainLabel }: { result: RainResult; phase: strin
               </div>
               <ul className="mt-3 space-y-1.5">
                 {parts
-                  .filter((pt) => pt.key !== "ground" || pt.v > 0)
+                  .filter((pt) => pt.key !== "rechargePotential" || pt.v > 0)
                   .map((pt) => (
                     <li key={pt.key} className="flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <span className={`h-2 w-2 rounded-full ${pt.color}`} />
                         {pt.label}
                       </span>
-                      <span className={`num ${pt.text}`}>{formatL(pt.v)}</span>
+                      <span className={`num ${pt.text}`}>{pt.display.toLocaleString("en-US")} L</span>
                     </li>
                   ))}
               </ul>
             </div>
 
             <div className="rounded-lg border border-drain/30 bg-drain/5 p-3">
-              {Number.isFinite(fillMm) && fillMm < rainMm ? (
+              {result.inputs.tankLitres <= 0 ? (
+                <p>
+                  No storage tank is configured. Harvestable runoff was{" "}
+                  {result.split.rechargePotential > 0
+                    ? "routed toward your recharge system; actual infiltration depends on the site."
+                    : "routed to the drain."}
+                </p>
+              ) : Number.isFinite(fillMm) && fillMm < rainMm ? (
                 <p>
                   Your <span className="num">{result.inputs.tankLitres.toLocaleString()} L</span> tank was full after the first{" "}
                   <span className="num text-tank">{Math.ceil(fillMm)} mm</span>. The other{" "}
                   <span className="num text-drain">{Math.max(0, Math.floor(rainMm - fillMm))} mm</span>{" "}
-                  {result.split.ground > 0 ? "went to your recharge well." : "ran off to the nullah."}
+                  {result.split.rechargePotential > 0
+                    ? "was routed toward your recharge system; actual infiltration depends on the site."
+                    : "was routed to the drain."}
                 </p>
               ) : (
                 <p>
@@ -440,7 +467,11 @@ function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
         </li>
         <li className="flex gap-2">
           <span className="num text-tank">2</span>
-          <span>Filter before storage and keep the tank covered. Use this water for gardening, washing, flushing and cleaning, not drinking.</span>
+          <span>
+            {result.inputs.tankLitres > 0
+              ? "Filter before storage and keep the tank covered. Use this water for gardening, washing, flushing and cleaning, not drinking."
+              : "No storage tank is configured. Add a covered tank if you want to reuse water for gardening, washing, flushing or cleaning."}
+          </span>
         </li>
         <li className="flex gap-2">
           <span className="num text-tank">3</span>
@@ -456,7 +487,8 @@ function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
           <span className="num text-tank">4</span>
           <span>
             Before the monsoon: clean the roof, gutters and filter, and check the tank lid.
-            {Number.isFinite(fillMm) && ` Your tank fills in about ${Math.ceil(fillMm)} mm of rain.`}
+            {result.inputs.tankLitres > 0 && Number.isFinite(fillMm) &&
+              ` Your tank fills in about ${Math.ceil(fillMm)} mm of rain.`}
           </span>
         </li>
       </ol>
@@ -469,7 +501,6 @@ function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
 }
 
 function StreetTotals({ street }: { street: Street }) {
-  const kept = street.tank + street.ground;
   return (
     <div className="mt-3 rounded-lg border border-tank/30 bg-tank/5 p-3">
       <p className="text-xs text-muted">
@@ -478,19 +509,25 @@ function StreetTotals({ street }: { street: Street }) {
       <p className="num mt-1 text-2xl font-semibold">{formatL(street.gross)}</p>
       <ul className="mt-2 space-y-1 text-sm">
         <li className="flex justify-between">
-          <span>Kept out of the nullah</span>
-          <span className="num text-tank">{formatL(kept)}</span>
+          <span>Stored in tanks</span>
+          <span className="num text-tank">{formatL(street.tank)}</span>
         </li>
+        {street.rechargePotential > 0 && (
+          <li className="flex justify-between">
+            <span>Routed toward recharge (potential)</span>
+            <span className="num text-ground">{formatL(street.rechargePotential)}</span>
+          </li>
+        )}
         <li className="flex justify-between">
           <span>Still lost to the drain</span>
           <span className="num text-drain">{formatL(street.drain)}</span>
         </li>
       </ul>
-      {street.keptWithWells > kept + 100 && (
+      {street.potentialWithWells > street.tank + street.rechargePotential + 100 && (
         <p className="mt-2 rounded-md bg-ground/10 px-2 py-1.5 text-xs">
           <span className="text-muted">Scenario: if every roof here added a filtered recharge well, </span>
-          <span className="num text-ground">{formatL(street.keptWithWells)}</span>
-          <span className="text-muted"> would stay out of the nullah in this storm.</span>
+          <span className="num text-ground">{formatL(street.potentialWithWells)}</span>
+          <span className="text-muted"> could be stored or routed toward recharge. Actual infiltration requires a site assessment.</span>
         </p>
       )}
       <p className="mt-2 text-xs text-muted">
