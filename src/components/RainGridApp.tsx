@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { CITY, OUT_OF_AUTHORIZED_RANGE, isInAuthorizedCity } from "@/config/city";
 import { ALL_SECTORS, searchSectors, type Sector } from "@/data/sectors";
 import { ISLAMABAD_STORMS, PRESETS, STORMS, nearestReading } from "@/data/storms";
@@ -13,7 +13,8 @@ import { choiceFromKey, choiceKey, decodeShare, encodeShare, type StormChoice } 
 import type { FlyTarget } from "./MapView";
 import RainCanvas from "./RainCanvas";
 import Intro from "./Intro";
-import ResultPanel from "./ResultPanel";
+import PhoneSheet from "./PhoneSheet";
+import ResultPanel, { type ResultPanelProps } from "./ResultPanel";
 import SourcesDrawer from "./SourcesDrawer";
 import { GuideProvider, markTourSeen, tourSeen } from "./guide/GuideContext";
 import Tour from "./guide/Tour";
@@ -42,6 +43,21 @@ export function rainFor(choice: StormChoice, lat: number, lng: number) {
 }
 
 type Phase = "idle" | "raining" | "done";
+
+// Phones get the one-step-at-a-time bottom sheet; the desktop side panel is
+// unchanged.
+const PHONE = "(max-width: 767px)";
+function useIsPhone() {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(PHONE);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  );
+}
 
 export default function RainGridApp() {
   return (
@@ -82,6 +98,10 @@ function RainGrid() {
   // Set by the landing's hand-off card: close the intro and focus the search.
   const [focusSearch, setFocusSearch] = useState(false);
   const [tour, setTour] = useState(false);
+  const isPhone = useIsPhone();
+  // Phone stepper: step 04 opens once a storm has been chosen (a shared link
+  // already carries one).
+  const [stormPicked, setStormPicked] = useState(shared.roofs.length > 0);
 
   // First visit to the map: run the guided tour once. Shared links skip it.
   useEffect(() => {
@@ -229,6 +249,49 @@ function RainGrid() {
     }
   };
 
+  const panelProps: ResultPanelProps = {
+    roofs,
+    active,
+    setActiveId: (id) => {
+      setActiveId(id);
+      setPhase("idle");
+    },
+    mode,
+    setMode: (m) => {
+      setMode(m);
+      setDrawPoints([]);
+    },
+    drawPoints,
+    finishDraw,
+    undoDraw: () => setDrawPoints((d) => d.slice(0, -1)),
+    typedArea,
+    setTypedArea,
+    addTyped,
+    updateArea,
+    removeRoof,
+    choice,
+    setChoice: (c) => {
+      setChoice(c);
+      setStormPicked(true);
+      resetResult();
+    },
+    rain,
+    setup,
+    setSetup: (s) => {
+      setSetup(s);
+      resetResult();
+    },
+    result,
+    phase,
+    replay,
+    street,
+    addingNeighbour,
+    setAddingNeighbour,
+    share,
+    openSources: () => setShowSources(true),
+    roofTypes: ROOF_TYPES,
+  };
+
   const intensity =
     // The landing draws its own rain, so the map's rain rests behind it.
     phase === "raining" ? Math.min(1, 0.35 + rain.mm / 200) : intro ? 0 : phase === "done" ? 0.05 : 0.08;
@@ -312,7 +375,7 @@ function RainGrid() {
         <div
           data-tour="map"
           aria-hidden
-          className="pointer-events-none absolute inset-x-3 top-28 bottom-[60dvh] md:bottom-6 md:left-6 md:right-[440px] md:top-24"
+          className="pointer-events-none absolute inset-x-3 top-28 bottom-[calc(var(--sheet-h,42vh)+12px)] md:bottom-6 md:left-6 md:right-[440px] md:top-24"
         />
       )}
 
@@ -341,52 +404,15 @@ function RainGrid() {
         </div>
       )}
 
-      {/* Side panel / bottom sheet */}
-      {!intro && (
-        <aside className="glass panel-sheen sheet absolute inset-x-0 bottom-0 z-20 max-h-[58dvh] overflow-y-auto rounded-t-2xl p-4 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[400px] md:rounded-2xl">
-          <ResultPanel
-            roofs={roofs}
-            active={active}
-            setActiveId={(id) => {
-              setActiveId(id);
-              setPhase("idle");
-            }}
-            mode={mode}
-            setMode={(m) => {
-              setMode(m);
-              setDrawPoints([]);
-            }}
-            drawPoints={drawPoints}
-            finishDraw={finishDraw}
-            undoDraw={() => setDrawPoints((d) => d.slice(0, -1))}
-            typedArea={typedArea}
-            setTypedArea={setTypedArea}
-            addTyped={addTyped}
-            updateArea={updateArea}
-            removeRoof={removeRoof}
-            choice={choice}
-            setChoice={(c) => {
-              setChoice(c);
-              resetResult();
-            }}
-            rain={rain}
-            setup={setup}
-            setSetup={(s) => {
-              setSetup(s);
-              resetResult();
-            }}
-            result={result}
-            phase={phase}
-            replay={replay}
-            street={street}
-            addingNeighbour={addingNeighbour}
-            setAddingNeighbour={setAddingNeighbour}
-            share={share}
-            openSources={() => setShowSources(true)}
-            roofTypes={ROOF_TYPES}
-          />
-        </aside>
-      )}
+      {/* Side panel (desktop) / step-by-step bottom sheet (phones) */}
+      {!intro &&
+        (isPhone ? (
+          <PhoneSheet panel={panelProps} stormPicked={stormPicked} onStormPicked={() => setStormPicked(true)} />
+        ) : (
+          <aside className="glass panel-sheen absolute bottom-4 right-4 top-4 z-20 w-[400px] overflow-y-auto rounded-2xl p-4">
+            <ResultPanel {...panelProps} />
+          </aside>
+        ))}
 
       <AnimatePresence>
         {intro && (
@@ -412,7 +438,7 @@ function RainGrid() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass absolute bottom-[60dvh] left-1/2 z-40 -translate-x-1/2 rounded-full px-4 py-2 text-sm md:bottom-6"
+            className="glass absolute bottom-[calc(var(--sheet-h,0px)+12px)] left-1/2 z-40 -translate-x-1/2 rounded-full px-4 py-2 text-sm md:bottom-6"
             role="status"
           >
             {toast}

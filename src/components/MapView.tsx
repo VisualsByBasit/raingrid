@@ -355,6 +355,11 @@ export default function MapView(props: Props) {
     });
 
     m.once("load", () => {
+      // Phones: start with the attribution collapsed to its "i" button so it
+      // doesn't cover the small map; one tap opens it.
+      if (window.matchMedia("(max-width: 767px)").matches) {
+        el.current?.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+      }
       if (flown.current) return;
       flown.current = true;
       const pose = { center: CITY.center, zoom: 12.3, pitch: 55, bearing: 12 };

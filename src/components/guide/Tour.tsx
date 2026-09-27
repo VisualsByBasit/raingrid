@@ -45,23 +45,36 @@ export default function Tour({ onClose }: { onClose: () => void }) {
   const step = TOUR_STEPS[i];
   const last = i === TOUR_STEPS.length - 1;
 
-  // Find the target, bring it into view (panels scroll on phones), measure.
+  // Ask the phone sheet to show the step holding the target, then find the
+  // target, bring it into view (panels scroll on phones) and measure.
   useEffect(() => {
-    const el = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
-    el?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    window.dispatchEvent(new CustomEvent("rg-tour-step", { detail: step.target }));
+    let el: HTMLElement | null = null;
     const measure = () => {
       setView({ w: window.innerWidth, h: window.innerHeight });
+      el ??= document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
       if (!el) return setBox(null);
       const r = el.getBoundingClientRect();
-      setBox({ top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 });
+      // Clip to the screen, and light only the top of tall sections so the
+      // card still fits beside the spotlight on small phones.
+      const top = Math.max(4, r.top - PAD);
+      const bottom = Math.min(window.innerHeight - 4, r.bottom + PAD, top + 260);
+      setBox({ top, left: r.left - PAD, width: r.width + PAD * 2, height: Math.max(40, bottom - top) });
     };
-    const t = window.setTimeout(measure, reduced ? 0 : 320);
+    const find = window.setTimeout(() => {
+      el = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
+      el?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    }, 60);
+    const t = window.setTimeout(measure, reduced ? 120 : 480);
     window.addEventListener("resize", measure);
     return () => {
+      window.clearTimeout(find);
       window.clearTimeout(t);
       window.removeEventListener("resize", measure);
     };
   }, [step.target, reduced]);
+
+  useEffect(() => () => void window.dispatchEvent(new Event("rg-tour-end")), []);
 
   useEffect(() => {
     next.current?.focus();

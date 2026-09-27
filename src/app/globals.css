@@ -162,15 +162,15 @@ body {
   filter: opacity(0.75);
 }
 
-/* Phones: the results sheet covers the lower map. Keep it nearly opaque so
-   numbers stay readable, and lift the map's attribution and zoom controls
-   above it (58dvh is the sheet's maximum height). */
+/* Phones: the step sheet covers the lower map. Keep it nearly opaque so
+   numbers stay readable, and keep the map's attribution and zoom controls
+   just above it at every snap height (--sheet-h is set by PhoneSheet). */
 @media (max-width: 767px) {
   .glass.sheet {
     background-color: color-mix(in oklab, var(--color-panel) 95%, transparent);
   }
   .maplibregl-ctrl-bottom-left {
-    bottom: calc(58dvh + 4px);
+    bottom: calc(var(--sheet-h, 0px) + 4px);
   }
 }
 

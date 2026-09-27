@@ -42,7 +42,9 @@ interface Street {
   potentialWithWells: number;
 }
 
-interface Props {
+export type StepNo = 1 | 2 | 3 | 4 | 5;
+
+export interface ResultPanelProps {
   roofs: Roof[];
   active: Roof | null;
   setActiveId: (id: string) => void;
@@ -70,17 +72,38 @@ interface Props {
   share: () => void;
   openSources: () => void;
   roofTypes: Record<RoofType, RoofTypeSpec>;
+  // Phone stepper: render only this step, without its heading (the sheet
+  // header shows it).
+  only?: StepNo;
 }
+type Props = ResultPanelProps;
 
-const Step = ({ n, title, tour, children }: { n: string; title: string; tour?: string; children: React.ReactNode }) => (
-  <section data-tour={tour} className="border-b border-line py-4 first:pt-0 last:border-0">
-    <h2 className="mb-3 flex items-baseline gap-2 text-sm font-semibold">
-      <span className="num text-xs text-tank">{n}</span>
-      {title}
-    </h2>
-    {children}
-  </section>
-);
+const Step = ({
+  n,
+  title,
+  tour,
+  bare,
+  children,
+}: {
+  n: string;
+  title: string;
+  tour?: string;
+  bare?: boolean;
+  children: React.ReactNode;
+}) =>
+  bare ? (
+    <section data-tour={tour} aria-label={title}>
+      {children}
+    </section>
+  ) : (
+    <section data-tour={tour} className="border-b border-line py-4 first:pt-0 last:border-0">
+      <h2 className="mb-3 flex items-baseline gap-2 text-sm font-semibold">
+        <span className="num text-xs text-tank">{n}</span>
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
 
 const btn = "rounded-lg border border-line px-3 py-2 text-sm transition hover:border-tank/60 hover:text-fg";
 
@@ -122,14 +145,19 @@ export default function ResultPanel(p: Props) {
   const lng = p.active?.lng;
 
   const large = p.active && isLargeComplex(p.active.areaM2, p.active.source) ? p.active : null;
+  const bare = p.only !== undefined;
+  const show = (n: StepNo) => p.only === undefined || p.only === n;
 
   return (
     <div className="text-sm">
-      <div className="-mt-1 mb-2 flex justify-end">
-        <GuideToggle />
-      </div>
+      {!bare && (
+        <div className="-mt-1 mb-2 flex justify-end">
+          <GuideToggle />
+        </div>
+      )}
       {/* 01 Roof */}
-      <Step n="01" title="Your roof">
+      {show(1) && (
+      <Step n="01" title="Your roof" bare={bare}>
         {p.mode === "draw" ? (
           <div className="space-y-2">
             <p className="text-muted">Tap each corner of your roof on the map, then finish.</p>
@@ -215,9 +243,11 @@ export default function ResultPanel(p: Props) {
           </div>
         )}
       </Step>
+      )}
 
       {/* 02 Storm */}
-      <Step n="02" title="Pick a real storm" tour="storms">
+      {show(2) && (
+      <Step n="02" title="Pick a real storm" tour="storms" bare={bare}>
         <div className="space-y-2" role="radiogroup" aria-label="Storm">
           {ISLAMABAD_STORMS.map((s) => {
             const r = lat != null && lng != null ? nearestReading(s, lat, lng) : null;
@@ -293,9 +323,11 @@ export default function ResultPanel(p: Props) {
           </div>
         </div>
       </Step>
+      )}
 
       {/* 03 Setup */}
-      <Step n="03" title="Your setup">
+      {show(3) && (
+      <Step n="03" title="Your setup" bare={bare}>
         <dl className="space-y-1.5">
           <SetupRow label="Tank" value={`${p.setup.tankLitres.toLocaleString("en-US")} L`} hint={SETUP_HINTS.tank} />
           <SetupRow label="Recharge well" value={p.setup.hasRecharge ? "Yes" : "No"} hint={SETUP_HINTS.recharge} />
@@ -363,9 +395,11 @@ export default function ResultPanel(p: Props) {
           )}
         </AnimatePresence>
       </Step>
+      )}
 
       {/* 04 Replay + result */}
-      <Step n="04" title="Replay it" tour="replay">
+      {show(4) && (
+      <Step n="04" title="Replay it" tour="replay" bare={bare}>
         {!p.active || !p.result ? (
           <p className="text-muted">Pick or type a roof first.</p>
         ) : (
@@ -381,14 +415,15 @@ export default function ResultPanel(p: Props) {
                   ? "Replay again"
                   : `Replay ${p.rain.mm} mm on my roof`}
             </button>
-            <Result result={p.result} phase={p.phase} rain={p.rain} />
+            <Result result={p.result} phase={p.phase} rain={p.rain} autoScroll={!bare} />
           </>
         )}
       </Step>
+      )}
 
       {/* 05 Street */}
-      {p.phase === "done" && p.active && (
-        <Step n="05" title="Bring your street">
+      {show(5) && p.phase === "done" && p.active && (
+        <Step n="05" title="Bring your street" bare={bare}>
           <p className="text-muted">
             One roof is a tank. A street of roofs keeps water out of the nalah when it floods. Add your neighbours&apos;
             roofs to see it.
@@ -408,19 +443,21 @@ export default function ResultPanel(p: Props) {
         </Step>
       )}
 
-      <button onClick={p.openSources} className="mt-2 text-xs text-muted underline underline-offset-4 hover:text-tank">
-        How we calculate, and every source
-      </button>
+      {!bare && (
+        <button onClick={p.openSources} className="mt-2 text-xs text-muted underline underline-offset-4 hover:text-tank">
+          How we calculate, and every source
+        </button>
+      )}
     </div>
   );
 }
 
-function Result({ result, phase, rain }: { result: RainResult; phase: string; rain: Props["rain"] }) {
+function Result({ result, phase, rain, autoScroll }: { result: RainResult; phase: string; rain: Props["rain"]; autoScroll: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   // Bring the result into view when the storm starts (matters on phones).
   useEffect(() => {
-    if (phase === "raining") box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [phase]);
+    if (autoScroll && phase === "raining") box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [phase, autoScroll]);
   const counting = phase === "raining" || phase === "done";
   const gross = useCountUp(result.gross, 3800, counting);
   // Net water arrives in step with the rain, and the tank fills first.
