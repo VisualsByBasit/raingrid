@@ -17,6 +17,8 @@ export default function RainCanvas({ intensity }: { intensity: number }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Streak colour comes from the theme (--rain-rgb) so it reads on light backgrounds.
+    const rgb = getComputedStyle(canvas).getPropertyValue("--rain-rgb").trim() || "71, 105, 145";
 
     let w = 0;
     let h = 0;
@@ -55,7 +57,7 @@ export default function RainCanvas({ intensity }: { intensity: number }) {
         ctx.lineCap = "round";
         for (let i = 0; i < n; i++) {
           const d = drops[i];
-          ctx.strokeStyle = `rgba(125, 211, 252, ${d.a})`;
+          ctx.strokeStyle = `rgba(${rgb}, ${d.a * 0.6})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(d.x, d.y);

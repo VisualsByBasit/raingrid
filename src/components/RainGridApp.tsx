@@ -70,6 +70,8 @@ export default function RainGridApp() {
   const [query, setQuery] = useState("");
   const [typedArea, setTypedArea] = useState("");
   const [showSources, setShowSources] = useState(false);
+  // Set by the landing's hand-off card: close the intro and focus the search.
+  const [focusSearch, setFocusSearch] = useState(false);
   const [toast, setToast] = useState<string | null>(shared.outOfRange ? OUT_OF_AUTHORIZED_RANGE : null);
 
   useEffect(() => {
@@ -207,7 +209,8 @@ export default function RainGridApp() {
   };
 
   const intensity =
-    phase === "raining" ? Math.min(1, 0.35 + rain.mm / 200) : intro ? 0.18 : phase === "done" ? 0.05 : 0.08;
+    // The landing draws its own rain, so the map's rain rests behind it.
+    phase === "raining" ? Math.min(1, 0.35 + rain.mm / 200) : intro ? 0 : phase === "done" ? 0.05 : 0.08;
   const suggestions = searchSectors(query);
 
   return (
@@ -248,6 +251,7 @@ export default function RainGridApp() {
         {!intro && (
           <div className="pointer-events-auto relative w-full max-w-xs md:w-72">
             <input
+              autoFocus={focusSearch}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -261,7 +265,7 @@ export default function RainGridApp() {
               <ul className="glass absolute mt-1 w-full overflow-hidden rounded-lg text-sm">
                 {suggestions.map((s) => (
                   <li key={s.id}>
-                    <button onClick={() => goSector(s)} className="w-full px-3 py-2 text-left hover:bg-white/5">
+                    <button onClick={() => goSector(s)} className="w-full px-3 py-2 text-left hover:bg-tank/10">
                       {s.id} <span className="text-muted">Islamabad</span>
                     </button>
                   </li>
@@ -299,7 +303,7 @@ export default function RainGridApp() {
 
       {/* Side panel / bottom sheet */}
       {!intro && (
-        <aside className="glass absolute inset-x-0 bottom-0 z-20 max-h-[58dvh] overflow-y-auto rounded-t-2xl p-4 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[400px] md:rounded-2xl">
+        <aside className="glass panel-sheen absolute inset-x-0 bottom-0 z-20 max-h-[58dvh] overflow-y-auto rounded-t-2xl p-4 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[400px] md:rounded-2xl">
           <ResultPanel
             roofs={roofs}
             active={active}
@@ -350,6 +354,10 @@ export default function RainGridApp() {
             onStart={() => setIntro(false)}
             onSector={goSector}
             onSources={() => setShowSources(true)}
+            onFindRoof={() => {
+              setFocusSearch(true);
+              setIntro(false);
+            }}
           />
         )}
       </AnimatePresence>

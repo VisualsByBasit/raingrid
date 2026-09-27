@@ -1,17 +1,54 @@
 @import "tailwindcss";
 
+/* Light theme. Components only use these tokens, so a dark theme can later
+   override them in one place. */
 @theme {
-  --color-ink: #07090c;
-  --color-panel: #0d1117;
-  --color-line: #1c2430;
-  --color-fg: #e6edf3;
-  --color-muted: #8b98a5;
-  --color-tank: #38bdf8;
-  --color-ground: #34d399;
-  --color-drain: #fb923c;
-  --color-lost: #475569;
+  --color-ink: #f7fbff; /* app background */
+  --color-panel: #ffffff;
+  --color-line: #dbe7f2;
+  --color-fg: #0f172a; /* slate-900 */
+  --color-muted: #64748b; /* slate-500 */
+  --color-tank: #0ea5e9; /* blue accent: stored water */
+  --color-tank-deep: #0369a1; /* blue for text and gradients on white */
+  --color-ground: #10b981; /* green accent: recharge */
+  --color-ground-deep: #047857;
+  --color-drain: #fb923c; /* lost to the drain */
+  --color-lost: #94a3b8;
+  --color-sky: #e0f2fe;
+  --color-leaf: #d1fae5;
   --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Tokens for the landing story scene (SVG fills) and the rain overlay. */
+:root {
+  --scene-sky-top: #bfe3fb;
+  --scene-sky-mid: #e8f5ff;
+  --scene-sky-low: #f7fbff;
+  --scene-sun: #fcd34d;
+  --scene-sun-glow: #fef3c7;
+  --scene-heat: #f59e0b;
+  --scene-hill-far: #b8d8cf;
+  --scene-hill-near: #8cc4ae;
+  --scene-hill-city: #d5e8e1;
+  --scene-cloud: #ffffff;
+  --scene-cloud-dark: #cbd5e1;
+  --scene-wall: #f1f5f9;
+  --scene-wall-shade: #e2e8f0;
+  --scene-roof: #cbd5e1;
+  --scene-roof-hit: var(--color-tank);
+  --scene-window: #bae6fd;
+  --scene-street: #94a3b8;
+  --scene-soil: #e7dcc8;
+  --scene-soil-deep: #d6c6a8;
+  --scene-water: var(--color-tank);
+  --scene-groundwater: #7dd3fc;
+  --scene-pipe: #64748b;
+  --scene-tank: #ffffff;
+  --scene-drain: var(--color-drain);
+  --scene-recharge: var(--color-ground);
+  /* Rain streaks: slate-blue so they read on light backgrounds. */
+  --rain-rgb: 71, 105, 145;
 }
 
 html,
@@ -28,9 +65,77 @@ body {
 }
 
 .glass {
-  background: color-mix(in oklab, var(--color-panel) 88%, transparent);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-panel) 75%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in oklab, var(--color-line) 85%, transparent);
+  box-shadow: 0 6px 24px color-mix(in oklab, var(--color-tank-deep) 8%, transparent);
+}
+
+/* Soft white-blue-green wash at the top of a panel. */
+.panel-sheen {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-sky) 70%, transparent) 0,
+    color-mix(in oklab, var(--color-leaf) 25%, transparent) 72px,
+    transparent 160px
+  );
+}
+
+.bg-landing {
+  background: linear-gradient(180deg, var(--color-sky) 0%, var(--color-ink) 42%, var(--color-ink) 70%, var(--color-leaf) 100%);
+}
+
+.bg-hero {
+  background:
+    radial-gradient(120% 70% at 80% 0%, color-mix(in oklab, var(--scene-sun-glow) 70%, transparent) 0, transparent 55%),
+    linear-gradient(180deg, var(--scene-sky-top) 0%, var(--scene-sky-mid) 55%, var(--color-ink) 100%);
+}
+
+/* Primary action: blue to green. Deep shades keep white text AA. */
+.btn-primary {
+  background-image: linear-gradient(100deg, var(--color-tank-deep), var(--color-ground-deep));
+  color: #fff;
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--color-tank-deep) 25%, transparent);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+/* Story scene loops. Only run when the user is fine with motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .scene-flow {
+    animation: scene-flow 1.1s linear infinite;
+  }
+  .scene-heat {
+    animation: scene-heat 2.4s ease-in-out infinite;
+  }
+  .scene-bob {
+    animation: scene-bob 3s ease-in-out infinite;
+  }
+}
+@keyframes scene-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@keyframes scene-heat {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-28px);
+    opacity: 0;
+  }
+}
+@keyframes scene-bob {
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 /* Light map chrome: white, blue, green. */
