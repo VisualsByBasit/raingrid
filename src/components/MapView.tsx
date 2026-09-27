@@ -56,7 +56,6 @@ const LINKS_RAIL_LAYER = "rg-links-rail";
 const PICK_SOURCE = "rg-pick";
 const PICK_LAYER = "rg-pick";
 const RAIN_BLUE = "#38bdf8";
-const LARGE_ROOF_M2 = 5000;
 const PART_TOLERANCE_M = 0.5;
 
 const ROOF_ACTIVE = "#0ea5e9";
@@ -135,8 +134,6 @@ export default function MapView(props: Props) {
   // The pieces each map roof is made of, so added parts can be removed again.
   const parts = useRef(new Map<string, Geom[]>());
   const [notice, setNotice] = useState<{ text: string; key: number } | null>(null);
-  // The roof id whose selection came out over LARGE_ROOF_M2, if any.
-  const [largeId, setLargeId] = useState<string | null>(null);
   const latest = useRef(props);
   useLayoutEffect(() => {
     latest.current = props;
@@ -445,7 +442,6 @@ export default function MapView(props: Props) {
       const areaM2 = Math.round(areaOf(merged));
       latest.current.onUpdateRoof({ ...roof, geometry: merged.geometry, areaM2, lat, lng });
       setNotice({ text, key: Date.now() });
-      setLargeId(areaM2 > LARGE_ROOF_M2 ? roof.id : null);
     };
 
     m.on("click", (e) => {
@@ -485,7 +481,6 @@ export default function MapView(props: Props) {
       const [lng, lat] = centroidOf(picked.geometry);
       const id = newRoofId("b");
       parts.current.set(id, [picked.geometry]);
-      setLargeId(area > LARGE_ROOF_M2 ? id : null);
       p.onPick({
         id,
         label: "Selected roof",
@@ -603,10 +598,6 @@ export default function MapView(props: Props) {
     });
   }, [props.flyTarget]);
 
-  // Shown only while the large roof that was just selected is still the
-  // selected roof and still over the limit; any other selection hides it.
-  const active = largeId && props.activeRoofId === largeId ? props.roofs.find((r) => r.id === largeId) : undefined;
-  const large = Boolean(active && active.areaM2 > LARGE_ROOF_M2);
   return (
     <>
       {/* Inline position: maplibre-gl.css sets .maplibregl-map { position: relative }, which
@@ -632,11 +623,6 @@ export default function MapView(props: Props) {
         {notice && (
           <div key={notice.key} role="status" className="glass rounded-full px-4 py-1.5 text-center text-xs text-fg">
             {notice.text}
-          </div>
-        )}
-        {large && (
-          <div role="status" className="glass rounded-full px-4 py-1.5 text-center text-xs text-fg">
-            Large building. Check the area, or draw your roof instead.
           </div>
         )}
       </div>

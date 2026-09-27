@@ -162,6 +162,18 @@ body {
   filter: opacity(0.75);
 }
 
+/* Phones: the results sheet covers the lower map. Keep it nearly opaque so
+   numbers stay readable, and lift the map's attribution and zoom controls
+   above it (58dvh is the sheet's maximum height). */
+@media (max-width: 767px) {
+  .glass.sheet {
+    background-color: color-mix(in oklab, var(--color-panel) 95%, transparent);
+  }
+  .maplibregl-ctrl-bottom-left {
+    bottom: calc(58dvh + 4px);
+  }
+}
+
 input[type="range"] {
   accent-color: var(--color-tank);
 }

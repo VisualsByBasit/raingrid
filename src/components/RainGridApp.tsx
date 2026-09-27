@@ -7,6 +7,7 @@ import { CITY, OUT_OF_AUTHORIZED_RANGE, isInAuthorizedCity } from "@/config/city
 import { ALL_SECTORS, searchSectors, type Sector } from "@/data/sectors";
 import { ISLAMABAD_STORMS, PRESETS, STORMS, nearestReading } from "@/data/storms";
 import { DEFAULTS, ROOF_TYPES, aggregate, calculate, type RoofType } from "@/lib/engine";
+import { measuredAt } from "@/lib/explain";
 import { areaOf, centroidOf, newRoofId, type Roof } from "@/lib/roof";
 import { choiceFromKey, choiceKey, decodeShare, encodeShare, type StormChoice } from "@/lib/share";
 import type { FlyTarget } from "./MapView";
@@ -14,6 +15,8 @@ import RainCanvas from "./RainCanvas";
 import Intro from "./Intro";
 import ResultPanel from "./ResultPanel";
 import SourcesDrawer from "./SourcesDrawer";
+import { GuideProvider, markTourSeen, tourSeen } from "./guide/GuideContext";
+import Tour from "./guide/Tour";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
 
@@ -24,25 +27,31 @@ export interface Setup {
   hasRecharge: boolean;
 }
 
+// The rain for a roof, plus where that number comes from in plain words
+// ("measured at Saidpur gauge, 3 km from your roof").
 export function rainFor(choice: StormChoice, lat: number, lng: number) {
-  if (choice.kind === "custom") return { mm: choice.mm, label: `${choice.mm} mm (your number)`, gaugeNote: null as string | null };
+  if (choice.kind === "custom") return { mm: choice.mm, label: `${choice.mm} mm (your number)`, where: "your own number" };
   if (choice.kind === "preset") {
     const p = PRESETS.find((x) => x.id === choice.id)!;
-    return { mm: p.mm, label: p.title, gaugeNote: "Long-term average, not a single storm" };
+    return { mm: p.mm, label: p.title, where: "long-term average, not a single storm" };
   }
   const s = STORMS.find((x) => x.id === choice.id)!;
   const r = nearestReading(s, lat, lng);
-  if (!r) return { mm: 0, label: s.dateLabel, gaugeNote: null };
-  return {
-    mm: r.mm,
-    label: s.dateLabel,
-    gaugeNote: `Nearest reported gauge: ${r.gauge.name} (${r.gauge.note}), about ${r.km < 1 ? "<1" : Math.round(r.km)} km away`,
-  };
+  if (!r) return { mm: 0, label: s.dateLabel, where: "no gauge reported near your roof" };
+  return { mm: r.mm, label: s.dateLabel, where: measuredAt(r.gauge.name, r.km) };
 }
 
 type Phase = "idle" | "raining" | "done";
 
 export default function RainGridApp() {
+  return (
+    <GuideProvider>
+      <RainGrid />
+    </GuideProvider>
+  );
+}
+
+function RainGrid() {
   // This component only renders in the browser (see RainGridClient), so the
   // shared street link can seed the initial state directly.
   const [shared] = useState(() => decodeShare(window.location.search));
@@ -72,6 +81,18 @@ export default function RainGridApp() {
   const [showSources, setShowSources] = useState(false);
   // Set by the landing's hand-off card: close the intro and focus the search.
   const [focusSearch, setFocusSearch] = useState(false);
+  const [tour, setTour] = useState(false);
+
+  // First visit to the map: run the guided tour once. Shared links skip it.
+  useEffect(() => {
+    if (intro || shared.roofs.length > 0 || tourSeen()) return;
+    const t = setTimeout(() => setTour(true), 700);
+    return () => clearTimeout(t);
+  }, [intro, shared.roofs.length]);
+  const closeTour = useCallback(() => {
+    setTour(false);
+    markTourSeen();
+  }, []);
   const [toast, setToast] = useState<string | null>(shared.outOfRange ? OUT_OF_AUTHORIZED_RANGE : null);
 
   useEffect(() => {
@@ -249,7 +270,17 @@ export default function RainGridApp() {
           RAIN<span className="text-tank">{"//"}</span>GRID
         </button>
         {!intro && (
-          <div className="pointer-events-auto relative w-full max-w-xs md:w-72">
+          <button
+            onClick={() => setTour(true)}
+            aria-label="How it works: open the guided tour"
+            title="How it works"
+            className="glass pointer-events-auto grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold text-tank-deep"
+          >
+            ?
+          </button>
+        )}
+        {!intro && (
+          <div data-tour="search" className="pointer-events-auto relative w-full max-w-xs md:w-72">
             <input
               autoFocus={focusSearch}
               value={query}
@@ -275,6 +306,15 @@ export default function RainGridApp() {
           </div>
         )}
       </header>
+
+      {/* Tour target: the visible map, not the panel. */}
+      {!intro && (
+        <div
+          data-tour="map"
+          aria-hidden
+          className="pointer-events-none absolute inset-x-3 top-28 bottom-[60dvh] md:bottom-6 md:left-6 md:right-[440px] md:top-24"
+        />
+      )}
 
       {/* Map hints */}
       {!intro && !mapError && (
@@ -303,7 +343,7 @@ export default function RainGridApp() {
 
       {/* Side panel / bottom sheet */}
       {!intro && (
-        <aside className="glass panel-sheen absolute inset-x-0 bottom-0 z-20 max-h-[58dvh] overflow-y-auto rounded-t-2xl p-4 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[400px] md:rounded-2xl">
+        <aside className="glass panel-sheen sheet absolute inset-x-0 bottom-0 z-20 max-h-[58dvh] overflow-y-auto rounded-t-2xl p-4 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[400px] md:rounded-2xl">
           <ResultPanel
             roofs={roofs}
             active={active}
@@ -363,6 +403,8 @@ export default function RainGridApp() {
       </AnimatePresence>
 
       <AnimatePresence>{showSources && <SourcesDrawer onClose={() => setShowSources(false)} />}</AnimatePresence>
+
+      <AnimatePresence>{tour && !intro && <Tour onClose={closeTour} />}</AnimatePresence>
 
       <AnimatePresence>
         {toast && (

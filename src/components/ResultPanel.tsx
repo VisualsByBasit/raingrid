@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { ISLAMABAD_STORMS, PRESETS, nearestReading } from "@/data/storms";
+import { GAUGES, ISLAMABAD_STORMS, PRESETS, nearestReading } from "@/data/storms";
 import {
   formatL,
   formatRange,
@@ -13,10 +13,22 @@ import {
   type RoofType,
   type RoofTypeSpec,
 } from "@/lib/engine";
+import {
+  depthLine,
+  gaugeLabel,
+  isLargeComplex,
+  largeComplexNotice,
+  measuredAt,
+  mmExplainer,
+  roofDisplayLabel,
+  tanksLine,
+} from "@/lib/explain";
 import type { Roof } from "@/lib/roof";
 import type { StormChoice } from "@/lib/share";
 import { useCountUp } from "@/lib/useCountUp";
 import type { Setup } from "./RainGridApp";
+import { GuideToggle } from "./guide/GuideContext";
+import Hint from "./guide/Hint";
 
 interface Street {
   gross: number;
@@ -46,7 +58,7 @@ interface Props {
   removeRoof: (id: string) => void;
   choice: StormChoice;
   setChoice: (c: StormChoice) => void;
-  rain: { mm: number; label: string; gaugeNote: string | null };
+  rain: { mm: number; label: string; where: string };
   setup: Setup;
   setSetup: (s: Setup) => void;
   result: RainResult | null;
@@ -60,8 +72,8 @@ interface Props {
   roofTypes: Record<RoofType, RoofTypeSpec>;
 }
 
-const Step = ({ n, title, children }: { n: string; title: string; children: React.ReactNode }) => (
-  <section className="border-b border-line py-4 first:pt-0 last:border-0">
+const Step = ({ n, title, tour, children }: { n: string; title: string; tour?: string; children: React.ReactNode }) => (
+  <section data-tour={tour} className="border-b border-line py-4 first:pt-0 last:border-0">
     <h2 className="mb-3 flex items-baseline gap-2 text-sm font-semibold">
       <span className="num text-xs text-tank">{n}</span>
       {title}
@@ -72,14 +84,50 @@ const Step = ({ n, title, children }: { n: string; title: string; children: Reac
 
 const btn = "rounded-lg border border-line px-3 py-2 text-sm transition hover:border-tank/60 hover:text-fg";
 
+// "157 mm (?) of rain · measured at Saidpur gauge, 3 km from your roof"
+function RainLine({ mm, where, className = "" }: { mm: number; where: string; className?: string }) {
+  return (
+    <p className={className}>
+      <span className="num font-semibold text-tank-deep">{mm.toLocaleString("en-US")} mm</span>
+      <Hint text={mmExplainer(mm)} label="What does mm of rain mean?" />{" "}
+      of rain · {where}
+    </p>
+  );
+}
+
+// One line of "Your setup": label, value and a "?" explanation.
+function SetupRow({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-muted">
+        {label}
+        <Hint text={hint} label={`About ${label.toLowerCase()}`} />
+      </dt>
+      <dd className="num text-right text-fg">{value}</dd>
+    </div>
+  );
+}
+
+const SETUP_HINTS = {
+  tank: "The water tank your house has. One 2,000 L tank is common. Change it to match yours.",
+  recharge: "A filtered pit that sends overflow into the ground instead of the drain.",
+  roof: "Concrete roofs lose more water than metal sheets.",
+  share: "Part of the roof lost to the water tank, stair room and parapets.",
+};
+
 export default function ResultPanel(p: Props) {
   const [showSetup, setShowSetup] = useState(false);
   const [customMm, setCustomMm] = useState("");
   const lat = p.active?.lat;
   const lng = p.active?.lng;
 
+  const large = p.active && isLargeComplex(p.active.areaM2, p.active.source) ? p.active : null;
+
   return (
     <div className="text-sm">
+      <div className="-mt-1 mb-2 flex justify-end">
+        <GuideToggle />
+      </div>
       {/* 01 Roof */}
       <Step n="01" title="Your roof">
         {p.mode === "draw" ? (
@@ -133,7 +181,7 @@ export default function ResultPanel(p: Props) {
                 }`}
               >
                 <button onClick={() => p.setActiveId(r.id)} className="flex-1 text-left">
-                  <span className="font-medium">{r.label}</span>
+                  <span className="font-medium">{roofDisplayLabel(r.label, r.areaM2, r.source)}</span>
                   <span className="ml-2 text-xs text-muted">
                     {r.source === "map" ? "from map outline" : r.source === "drawn" ? "drawn" : "typed"}
                   </span>
@@ -154,32 +202,57 @@ export default function ResultPanel(p: Props) {
                 </button>
               </div>
             ))}
-            <p className="text-xs text-muted/80">Area looks off? Edit it. Map outlines come from OpenStreetMap and can be imperfect.</p>
+            {large ? (
+              <div role="status" className="rounded-lg border border-drain/40 bg-drain/5 p-3 text-[13px] leading-snug text-fg">
+                <p>{largeComplexNotice(large.areaM2)}</p>
+                <button className={`${btn} mt-2 bg-panel`} onClick={() => p.setMode("draw")}>
+                  Draw just my roof
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted/80">Area looks off? Edit it. Map outlines come from OpenStreetMap and can be imperfect.</p>
+            )}
           </div>
         )}
       </Step>
 
       {/* 02 Storm */}
-      <Step n="02" title="Pick a real storm">
-        <div className="space-y-2">
+      <Step n="02" title="Pick a real storm" tour="storms">
+        <div className="space-y-2" role="radiogroup" aria-label="Storm">
           {ISLAMABAD_STORMS.map((s) => {
             const r = lat != null && lng != null ? nearestReading(s, lat, lng) : null;
-            const max = Math.max(...Object.values(s.readings).map((v) => v ?? 0));
+            // Without a roof yet: the storm's highest reading and its gauge.
+            const top = Object.entries(s.readings).reduce<[string, number] | null>(
+              (best, [id, mm]) => (mm != null && (!best || mm > best[1]) ? [id, mm] : best),
+              null,
+            );
+            const mm = r ? r.mm : (top?.[1] ?? 0);
+            const where = r
+              ? measuredAt(r.gauge.name, r.km)
+              : top
+                ? `highest reading, at ${gaugeLabel(GAUGES[top[0]].name)}`
+                : "no gauge readings";
             const selected = p.choice.kind === "storm" && p.choice.id === s.id;
             return (
-              <button
+              <label
                 key={s.id}
-                onClick={() => p.setChoice({ kind: "storm", id: s.id })}
-                className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${
+                className={`block w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-tank-deep ${
                   selected ? "border-tank/70 bg-tank/10" : "border-line hover:border-tank/40"
                 }`}
               >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-medium">{s.dateLabel}</span>
-                  <span className="num text-tank">{r ? `${r.mm} mm` : `up to ${max} mm`}</span>
-                </div>
-                <p className="mt-0.5 text-xs text-muted">{s.title}. {s.blurb}</p>
-              </button>
+                <input
+                  type="radio"
+                  name="storm"
+                  className="sr-only"
+                  checked={selected}
+                  onChange={() => p.setChoice({ kind: "storm", id: s.id })}
+                />
+                <span className="block font-medium">{s.dateLabel}</span>
+                <RainLine mm={mm} where={where} className="mt-0.5 text-[13px] text-fg" />
+                <span className="mt-0.5 block text-xs text-muted">
+                  {s.title}. {s.blurb}
+                </span>
+              </label>
             );
           })}
           <div className="grid grid-cols-2 gap-2">
@@ -218,18 +291,23 @@ export default function ResultPanel(p: Props) {
               Set
             </button>
           </div>
-          {p.rain.gaugeNote && p.active && <p className="text-xs text-muted/80">{p.rain.gaugeNote}.</p>}
         </div>
       </Step>
 
       {/* 03 Setup */}
       <Step n="03" title="Your setup">
-        <button onClick={() => setShowSetup((v) => !v)} className="flex w-full items-center justify-between text-left text-muted">
-          <span>
-            <span className="num text-fg">{p.setup.tankLitres.toLocaleString()} L</span> tank ·{" "}
-            {p.setup.hasRecharge ? "recharge well" : "no recharge well"} · {p.roofTypes[p.setup.roofType].label}
-          </span>
-          <span className="text-xs">{showSetup ? "Hide" : "Edit"}</span>
+        <dl className="space-y-1.5">
+          <SetupRow label="Tank" value={`${p.setup.tankLitres.toLocaleString("en-US")} L`} hint={SETUP_HINTS.tank} />
+          <SetupRow label="Recharge well" value={p.setup.hasRecharge ? "Yes" : "No"} hint={SETUP_HINTS.recharge} />
+          <SetupRow label="Roof type" value={p.roofTypes[p.setup.roofType].label} hint={SETUP_HINTS.roof} />
+          <SetupRow label="Usable share" value={`${Math.round(p.setup.usableShare * 100)}%`} hint={SETUP_HINTS.share} />
+        </dl>
+        <button
+          onClick={() => setShowSetup((v) => !v)}
+          aria-expanded={showSetup}
+          className="mt-2 text-xs text-tank-deep underline underline-offset-4"
+        >
+          {showSetup ? "Hide" : "Edit your setup"}
         </button>
         <AnimatePresence initial={false}>
           {showSetup && (
@@ -287,7 +365,7 @@ export default function ResultPanel(p: Props) {
       </Step>
 
       {/* 04 Replay + result */}
-      <Step n="04" title="Replay it">
+      <Step n="04" title="Replay it" tour="replay">
         {!p.active || !p.result ? (
           <p className="text-muted">Pick or type a roof first.</p>
         ) : (
@@ -303,7 +381,7 @@ export default function ResultPanel(p: Props) {
                   ? "Replay again"
                   : `Replay ${p.rain.mm} mm on my roof`}
             </button>
-            <Result result={p.result} phase={p.phase} rainLabel={p.rain.label} />
+            <Result result={p.result} phase={p.phase} rain={p.rain} />
           </>
         )}
       </Step>
@@ -337,7 +415,7 @@ export default function ResultPanel(p: Props) {
   );
 }
 
-function Result({ result, phase, rainLabel }: { result: RainResult; phase: string; rainLabel: string }) {
+function Result({ result, phase, rain }: { result: RainResult; phase: string; rain: Props["rain"] }) {
   const box = useRef<HTMLDivElement>(null);
   // Bring the result into view when the storm starts (matters on phones).
   useEffect(() => {
@@ -375,8 +453,15 @@ function Result({ result, phase, rainLabel }: { result: RainResult; phase: strin
     <div ref={box} className="mt-4 scroll-mt-4 space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs text-muted">Rain that landed on this roof · {rainLabel}</p>
-          <p className="num text-3xl font-semibold text-fg">{roundL(gross).toLocaleString("en-US")} L</p>
+          <RainLine mm={rain.mm} where={rain.where} className="text-xs text-fg" />
+          <p className="num mt-1 text-3xl font-semibold text-fg">{roundL(gross).toLocaleString("en-US")} L</p>
+          <p className="text-xs text-muted">landed on this roof</p>
+          {phase === "done" && (
+            <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-1 space-y-0.5 text-[13px] text-fg">
+              {tanksLine(result.gross, result.inputs.tankLitres) && <li>{tanksLine(result.gross, result.inputs.tankLitres)}</li>}
+              <li>{depthLine(result.inputs.rainMm)}</li>
+            </motion.ul>
+          )}
         </div>
         <div className="relative h-16 w-10 overflow-hidden rounded-md border border-line" aria-label="Tank level">
           <div className="absolute inset-x-0 bottom-0 bg-tank/80 transition-[height] duration-200" style={{ height: `${tankFill * 100}%` }} />
