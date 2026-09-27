@@ -617,10 +617,10 @@ export default function MapView(props: Props) {
       >
         {/* The ring stays small and see-through so the highlighted building
             under it stays visible; "select" appears beside it. */}
-        <div className="flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.45)] transition-all duration-200 ease-out group-data-[over=true]:h-6 group-data-[over=true]:w-6">
-          <span className="h-1 w-1 rounded-full bg-sky-500" />
+        <div className="flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-rain shadow-[0_0_8px_color-mix(in_oklab,var(--color-rain)_45%,transparent)] transition-all duration-200 ease-out group-data-[over=true]:h-6 group-data-[over=true]:w-6">
+          <span className="h-1 w-1 rounded-full bg-rain" />
         </div>
-        <span className="absolute left-4 top-1 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700 opacity-0 shadow-sm transition-opacity duration-150 group-data-[over=true]:opacity-100">
+        <span className="absolute left-4 top-1 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-tank-deep opacity-0 shadow-sm transition-opacity duration-150 group-data-[over=true]:opacity-100">
           select
         </span>
       </div>

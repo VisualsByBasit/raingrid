@@ -14,6 +14,9 @@ const plain = (stat: string) => stat.replace(/^~\s*/, "about ");
 export const HERO = {
   kicker: `RAIN//GRID - ${CITY.name}`,
   headline: `On ${record.dateLabel}, ${h8Mm} mm of rain fell near H-8.`,
+  // The same headline split into lines for the hero's staggered entrance.
+  headlineLines: [`On ${record.dateLabel},`, `${h8Mm} mm of rain`, "fell near H-8."],
+  eyebrow: `${CITY.name} · Monsoon`,
   question: "Where did your roof's share go?",
   lead: "Pick your roof, replay a real recorded storm, and follow every litre: into a tank, down a recharge well, or into the nalah. Then bring your street.",
 };

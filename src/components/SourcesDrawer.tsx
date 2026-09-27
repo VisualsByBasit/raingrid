@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { CITY } from "@/config/city";
 import { DEFAULTS, ENGINE_SOURCES, ROOF_TYPES } from "@/lib/engine";
 import { GAUGES, MONTHLY_NORMALS, NORMALS_SOURCE, PRESETS, STORMS } from "@/data/storms";
+import { FOOTAGE } from "./landing/footage";
 
 export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
   return (
@@ -126,6 +127,22 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           </li>
           <li>Map engine: MapLibre GL JS. Geometry: Turf.js.</li>
           <li>Sector locations are approximate (within about 1 km).</li>
+        </ul>
+
+        <h3 className="mt-6 font-semibold">Footage</h3>
+        <ul className="mt-2 space-y-1.5 text-muted">
+          {FOOTAGE.map((c) => (
+            <li key={c.file}>
+              {c.use}: &ldquo;
+              <a className="underline" href={c.url} target="_blank" rel="noreferrer">
+                {c.title}
+              </a>
+              &rdquo; from {c.source},{" "}
+              <a className="underline" href={c.licenceUrl} target="_blank" rel="noreferrer">
+                {c.licence}
+              </a>
+            </li>
+          ))}
         </ul>
 
         <h3 className="mt-6 font-semibold">Honesty notes</h3>
