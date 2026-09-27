@@ -1,6 +1,7 @@
 // Builds the app icons from the logo artwork (glass droplet on black):
 //   src/app/icon.png        512 x 512 (favicon)
 //   src/app/apple-icon.png  180 x 180 (Apple touch icon)
+//   public/media/logo-transparent.png  256 x 256, black keyed out (README)
 // Trims the near-black background (luminance above 20), then pads back to
 // a centred square with about 6% margin on the same black. Rerun after
 // changing the logo:
@@ -52,6 +53,59 @@ for (const { file, size } of OUT) {
   await sharp(square).resize(size, size, { kernel: "lanczos3" }).png({ compressionLevel: 9, palette: true, quality: 90, dither: 0.6 }).toFile(file);
 }
 console.log(`trimmed ${width}x${height} -> square ${side} (bg rgb ${corner[0]},${corner[1]},${corner[2]}); wrote ${OUT.map((o) => o.file).join(", ")}`);
+
+// Transparent logo for light pages (the README). Brightness becomes alpha
+// (each pixel's max RGB, a smooth ramp from 12 to 60) and colour is divided
+// by alpha, treating the art as light over black: over a dark page it
+// matches the original, and the glow fades out with no black box or hard
+// edge. The drop itself (everything the background can't reach past its
+// bright glass rim, found by flood fill from the frame's edge) stays opaque,
+// so dark trees and shadows inside the scene don't turn see-through.
+const TRANSPARENT = { file: "public/media/logo-transparent.png", size: 256, lo: 12, hi: 60 };
+const smooth = (lo, hi, x) => {
+  const t = Math.min(1, Math.max(0, (x - lo) / (hi - lo)));
+  return t * t * (3 - 2 * t);
+};
+const { data: sq, info: sqInfo } = await sharp(square).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+const W = sqInfo.width;
+const H = sqInfo.height;
+const n = W * H;
+const bright = Buffer.alloc(n);
+for (let i = 0, j = 0; j < n; i += 3, j++) bright[j] = Math.max(sq[i], sq[i + 1], sq[i + 2]);
+const outside = new Uint8Array(n);
+const stack = [];
+for (let x = 0; x < W; x++) stack.push(x, (H - 1) * W + x);
+for (let y = 0; y < H; y++) stack.push(y * W, y * W + W - 1);
+while (stack.length) {
+  const j = stack.pop();
+  if (outside[j] || bright[j] > TRANSPARENT.hi) continue;
+  outside[j] = 1;
+  const x = j % W;
+  if (x > 0) stack.push(j - 1);
+  if (x < W - 1) stack.push(j + 1);
+  if (j >= W) stack.push(j - W);
+  if (j < n - W) stack.push(j + W);
+}
+const solid = Buffer.alloc(n);
+for (let j = 0; j < n; j++) solid[j] = outside[j] ? 0 : 255;
+// Soften the silhouette's edge by a pixel or two.
+const { data: body } = await sharp(solid, { raw: { width: W, height: H, channels: 1 } })
+  .blur(1.5)
+  .extractChannel(0)
+  .raw()
+  .toBuffer({ resolveWithObject: true });
+const rgba = Buffer.alloc(n * 4);
+for (let i = 0, j = 0, o = 0; j < n; i += 3, j++, o += 4) {
+  const a = Math.max(smooth(TRANSPARENT.lo, TRANSPARENT.hi, bright[j]), body[j] / 255);
+  const k = a > 0 ? 1 / a : 0;
+  for (let c = 0; c < 3; c++) rgba[o + c] = Math.min(255, Math.round(sq[i + c] * k));
+  rgba[o + 3] = Math.round(a * 255);
+}
+await sharp(rgba, { raw: { width: W, height: H, channels: 4 } })
+  .resize(TRANSPARENT.size, TRANSPARENT.size, { kernel: "lanczos3" })
+  .png({ compressionLevel: 9 })
+  .toFile(TRANSPARENT.file);
+console.log(`wrote ${TRANSPARENT.file}`);
 
 try {
   await unlink("src/app/favicon.ico");
