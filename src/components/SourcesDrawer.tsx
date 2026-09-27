@@ -149,6 +149,7 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
               </li>
             ),
           )}
+          <li>Logo generated with ChatGPT image generation, edited by Mayaar OS.</li>
         </ul>
 
         <h3 className="mt-6 font-semibold">Honesty notes</h3>
