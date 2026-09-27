@@ -40,9 +40,9 @@ export const ENGINE_SOURCES = {
 export const DEFAULTS = {
   roofType: "rcc" as RoofType,
   firstFlushMm: 1.5,
-  // Start from the full measured footprint. The user reduces this for solar
-  // panels, stairs, tanks, or roof sections that do not drain to the system.
-  usableShare: 1,
+  // Assume 85% of the measured footprint drains to the system, allowing for
+  // stairs, tanks, solar panels and parapets. The user can adjust it.
+  usableShare: 0.85,
   tankLitres: 2000,
   hasRecharge: false,
 };

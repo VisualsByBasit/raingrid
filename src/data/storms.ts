@@ -2,6 +2,8 @@
 // Every reading is quoted from the linked report. Gauge coordinates are
 // approximate and only used to pick the nearest reported gauge to a roof.
 
+import { isInAuthorizedCity } from "../config/city";
+
 export interface Gauge {
   id: string;
   name: string;
@@ -114,6 +116,19 @@ export const STORMS: Storm[] = [
   },
 ];
 
+// Gauges inside Islamabad. The Rawalpindi gauges above stay in the catalogue
+// (and the sources drawer) but never set the rain for an Islamabad roof.
+export const ISLAMABAD_GAUGE_IDS = ["pmd", "golra", "bokra", "saidpur", "zeropoint", "airport"];
+
+export function isIslamabadGauge(id: string): boolean {
+  return ISLAMABAD_GAUGE_IDS.includes(id);
+}
+
+// Storms offered in the picker: at least one Islamabad gauge reading.
+export const ISLAMABAD_STORMS: Storm[] = STORMS.filter((storm) =>
+  Object.entries(storm.readings).some(([id, mm]) => mm != null && isIslamabadGauge(id)),
+);
+
 // Longer-period presets. Clearly labelled as averages, not events.
 export interface Preset {
   id: string;
@@ -182,10 +197,13 @@ function distKm(aLat: number, aLng: number, bLat: number, bLng: number) {
 }
 
 // The reading from the gauge closest to the roof, among gauges that reported.
+// Islamabad roofs only ever use Islamabad gauges.
 export function nearestReading(storm: Storm, lat: number, lng: number) {
+  const islamabadRoof = isInAuthorizedCity(lat, lng);
   let best: { gauge: Gauge; mm: number; km: number } | null = null;
   for (const [id, mm] of Object.entries(storm.readings)) {
     if (mm == null) continue;
+    if (islamabadRoof && !isIslamabadGauge(id)) continue;
     const g = GAUGES[id];
     const km = distKm(lat, lng, g.lat, g.lng);
     if (!best || km < best.km) best = { gauge: g, mm, km };

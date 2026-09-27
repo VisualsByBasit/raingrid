@@ -15,7 +15,7 @@ export const CITY = {
     [72.8, 33.58],
     [72.98, 33.58],
     [73.02, 33.62],
-    [73.04, 33.65],
+    [73.04, 33.643],
     [73.2, 33.65],
     [73.25, 33.82],
     [72.8, 33.82],
@@ -52,7 +52,7 @@ export const CITY = {
   },
 };
 
-export const OUT_OF_AUTHORIZED_RANGE = "Out of authorised range — this RAIN//GRID build is for Islamabad.";
+export const OUT_OF_AUTHORIZED_RANGE = "This RAIN//GRID build covers Islamabad only.";
 
 export function isInAuthorizedCity(lat: number, lng: number): boolean {
   let inside = false;

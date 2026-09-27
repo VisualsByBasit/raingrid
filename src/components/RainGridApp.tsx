@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CITY, OUT_OF_AUTHORIZED_RANGE, isInAuthorizedCity } from "@/config/city";
 import { ALL_SECTORS, searchSectors, type Sector } from "@/data/sectors";
-import { PRESETS, STORMS, nearestReading } from "@/data/storms";
+import { ISLAMABAD_STORMS, PRESETS, STORMS, nearestReading } from "@/data/storms";
 import { DEFAULTS, ROOF_TYPES, aggregate, calculate, type RoofType } from "@/lib/engine";
 import { areaOf, centroidOf, newRoofId, type Roof } from "@/lib/roof";
 import { choiceFromKey, choiceKey, decodeShare, encodeShare, type StormChoice } from "@/lib/share";
@@ -57,7 +57,7 @@ export default function RainGridApp() {
     shared.roofs[0] ? { lng: shared.roofs[0].lng, lat: shared.roofs[0].lat, zoom: 16.5, key: 1 } : null,
   );
   const [choice, setChoice] = useState<StormChoice>(
-    () => choiceFromKey(shared.storm) ?? { kind: "storm", id: STORMS[0].id },
+    () => choiceFromKey(shared.storm) ?? { kind: "storm", id: ISLAMABAD_STORMS[0].id },
   );
   const [setup, setSetup] = useState<Setup>({
     roofType: DEFAULTS.roofType,
@@ -169,6 +169,12 @@ export default function RainGridApp() {
     setTypedArea("");
   };
 
+  // A map roof gained or lost a part (multi-part houses): new outline and area.
+  const updateRoof = (roof: Roof) => {
+    setRoofs((prev) => prev.map((r) => (r.id === roof.id ? { ...roof, label: r.label } : r)));
+    setPhase("idle");
+  };
+
   const updateArea = (id: string, areaM2: number) => {
     setRoofs((prev) => prev.map((r) => (r.id === id ? { ...r, areaM2 } : r)));
     setPhase("idle");
@@ -218,6 +224,8 @@ export default function RainGridApp() {
           onMapError={() => setMapError(true)}
           flyTarget={fly}
           raining={phase === "raining"}
+          addingNeighbour={addingNeighbour}
+          onUpdateRoof={updateRoof}
         />
       )}
       {mapError && (

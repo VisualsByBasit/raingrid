@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { PRESETS, STORMS, nearestReading } from "@/data/storms";
+import { ISLAMABAD_STORMS, PRESETS, nearestReading } from "@/data/storms";
 import {
   formatL,
   formatRange,
@@ -162,7 +162,7 @@ export default function ResultPanel(p: Props) {
       {/* 02 Storm */}
       <Step n="02" title="Pick a real storm">
         <div className="space-y-2">
-          {STORMS.map((s) => {
+          {ISLAMABAD_STORMS.map((s) => {
             const r = lat != null && lng != null ? nearestReading(s, lat, lng) : null;
             const max = Math.max(...Object.values(s.readings).map((v) => v ?? 0));
             const selected = p.choice.kind === "storm" && p.choice.id === s.id;

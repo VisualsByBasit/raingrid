@@ -1,6 +1,6 @@
 import type { Roof } from "./roof";
 import { isInAuthorizedCity } from "../config/city";
-import { PRESETS, STORMS } from "../data/storms";
+import { ISLAMABAD_STORMS, PRESETS } from "../data/storms";
 
 export const SHARE_LIMITS = {
   roofs: 12,
@@ -25,7 +25,7 @@ export function choiceFromKey(key: string | null): StormChoice | null {
       ? { kind: "custom", mm: Math.min(SHARE_LIMITS.rainMm, mm) }
       : null;
   }
-  if (STORMS.some((storm) => storm.id === key)) return { kind: "storm", id: key };
+  if (ISLAMABAD_STORMS.some((storm) => storm.id === key)) return { kind: "storm", id: key };
   if (PRESETS.some((preset) => preset.id === key)) return { kind: "preset", id: key };
   return null;
 }
