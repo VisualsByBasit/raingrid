@@ -1,15 +1,21 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { motion } from "framer-motion";
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { searchSectors, type Sector } from "@/data/sectors";
-import RainCanvas from "../RainCanvas";
 import { reportProgress } from "../loader/progress";
 import { HERO } from "../story/copy";
+import { PLATE_URL } from "../three/assets";
+import { detectSceneMode, detectSceneTier, type SceneMode } from "../three/sceneMode";
+import HeroBackdrop from "./HeroBackdrop";
 
-// Landing hero: slow real storm-cloud footage under a monsoon-deep gradient,
-// the 21 July 2025 headline, sector search and the droplet. Lines rise in
-// with an 80 ms stagger once the loader has gone (`ready`).
+// Landing hero: the living Islamabad plate (one WebGL scene with the
+// refracting droplet), the 21 July 2025 headline and sector search. Lines
+// rise in with an 80 ms stagger once the loader has gone (`ready`). Low-end
+// devices get a CSS version, reduced motion a still.
+
+const HeroScene = dynamic(() => import("../three/HeroScene"), { ssr: false });
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const rise = {
@@ -17,20 +23,45 @@ const rise = {
   in: (i: number) => ({ opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE, delay: 0.08 * i } }),
 };
 
+// A WebGL failure at runtime falls back to the CSS hero.
+class SceneBoundary extends Component<{ onError: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onError();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 export default function Hero({
   ready,
+  scroller,
   onStart,
   onSector,
   onSources,
 }: {
   ready: boolean;
+  scroller: RefObject<HTMLElement | null>;
   onStart: () => void;
   onSector: (s: Sector) => void;
   onSources: () => void;
 }) {
   const [q, setQ] = useState("");
   const hits = searchSectors(q, 5);
-  const reduced = useReducedMotion() ?? false;
+  const [mode, setMode] = useState<SceneMode>(detectSceneMode);
+  const [tier] = useState(detectSceneTier);
+  const [sceneReady, setSceneReady] = useState(false);
+  const onSceneReady = useCallback(() => setSceneReady(true), []);
+  const onSceneError = useCallback(() => {
+    reportProgress("scene", 1);
+    setMode("css");
+  }, []);
+  const header = useRef<HTMLElement>(null);
+  const slot = useRef<HTMLDivElement>(null);
   // Only grab focus where it won't pop a phone keyboard over the headline.
   const [focusOnLoad] = useState(() => window.matchMedia("(hover: hover) and (pointer: fine)").matches);
   const state = ready ? "in" : "out";
@@ -41,34 +72,41 @@ export default function Hero({
   }, [ready, focusOnLoad]);
   const lines = [...HERO.headlineLines];
 
-  // Tell the loader when the hero's first frame is ready: the poster at
-  // least, the video when it can play (or if it fails, so nothing waits).
+  // Tell the loader when the plate is in (or failed, so nothing waits). The
+  // 3D scene reports its own part; without it there is nothing to wait for.
   useEffect(() => {
     const img = new Image();
-    img.onload = () => reportProgress("hero", 0.6);
-    img.src = "/media/hero-clouds.jpg";
-  }, []);
+    img.onload = img.onerror = () => reportProgress("hero", 1);
+    img.src = PLATE_URL;
+    if (mode !== "webgl") reportProgress("scene", 1);
+  }, [mode]);
+
+  const webgl = mode === "webgl";
 
   return (
-    <header className="bg-night relative isolate min-h-dvh overflow-hidden text-glacier">
-      <video
-        className="absolute inset-0 -z-10 h-full w-full object-cover"
-        src="/media/hero-clouds.mp4"
-        poster="/media/hero-clouds.jpg"
-        autoPlay={!reduced}
-        muted
-        loop
-        playsInline
-        preload="auto"
-        aria-hidden
-        onCanPlay={() => reportProgress("hero", 1)}
-        onError={() => reportProgress("hero", 1)}
-      />
+    <header ref={header} className="bg-night relative isolate min-h-dvh overflow-hidden text-glacier">
+      {/* The still plate sits under the scene until its first frame, and is the whole backdrop without WebGL. */}
+      <HeroBackdrop still={webgl || mode === "static"} />
+      {webgl && (
+        <SceneBoundary onError={onSceneError}>
+          <motion.div
+            aria-hidden
+            className="absolute inset-0 -z-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: sceneReady ? 1 : 0 }}
+            transition={{ duration: 0.9, ease: EASE }}
+          >
+            <HeroScene tier={tier} eventSource={header} anchor={slot} scroller={scroller} onReady={onSceneReady} />
+          </motion.div>
+        </SceneBoundary>
+      )}
       {/* Monsoon-deep from the bottom (and the text side on desktop) keeps the copy AA. */}
-      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-monsoon-deep/90 via-monsoon-deep/45 to-monsoon-deep/10" />
-      <div aria-hidden className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-monsoon-deep/70 via-monsoon-deep/25 to-transparent md:block" />
-      <RainCanvas intensity={0.22} />
-      <div className="grain" aria-hidden />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-t from-monsoon-deep/90 via-monsoon-deep/50 to-monsoon-deep/10 md:via-monsoon-deep/25 md:to-transparent"
+      />
+      <div aria-hidden className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-monsoon-deep/80 via-monsoon-deep/35 to-transparent md:block" />
+      {!webgl && <div className="grain" aria-hidden />}
 
       {/* Top bar */}
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-5 py-5 md:px-10 md:py-7">
@@ -80,20 +118,31 @@ export default function Hero({
         </button>
       </div>
 
-      <div className="relative mx-auto grid min-h-dvh w-full max-w-7xl items-center gap-8 px-5 pb-28 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10">
-        {/* Droplet: right column on desktop, behind the headline on phones. */}
+      <div className="relative mx-auto grid min-h-dvh w-full max-w-7xl items-center gap-6 px-5 pb-28 pt-20 md:grid-cols-[1.2fr_0.8fr] md:gap-8 md:px-10 md:pt-24">
+        {/* Droplet slot: right column on desktop, centred above the headline on phones. The 3D droplet hangs here; without WebGL the still droplet fills it. */}
         <div
+          ref={slot}
           aria-hidden
-          className="pointer-events-none absolute right-[-12%] top-[10%] w-[70vw] max-w-[360px] opacity-45 md:static md:order-2 md:w-full md:max-w-[420px] md:justify-self-center md:opacity-100"
+          className="pointer-events-none mx-auto h-[20vh] w-[16vh] md:order-2 md:aspect-[4/5] md:h-auto md:w-full md:max-w-[380px] md:justify-self-center"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={ready ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-            transition={{ duration: 1.2, ease: EASE }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- stage 2 placeholder, replaced by the 3D droplet in stage 3 */}
-            <img src="/media/droplet.png" alt="" width={600} height={750} className="float h-auto w-full" draggable={false} />
-          </motion.div>
+          {!webgl && (
+            <motion.div
+              className="h-full w-full"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={ready ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
+              transition={{ duration: 1.2, ease: EASE }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- the CSS hero's still droplet */}
+              <img
+                src="/media/droplet.png"
+                alt=""
+                width={600}
+                height={750}
+                className={`h-full w-full object-contain ${mode === "css" ? "float" : ""}`}
+                draggable={false}
+              />
+            </motion.div>
+          )}
         </div>
 
         <div className="relative md:order-1">

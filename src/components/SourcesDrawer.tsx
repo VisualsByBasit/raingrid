@@ -131,18 +131,24 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
 
         <h3 className="mt-6 font-semibold">Footage</h3>
         <ul className="mt-2 space-y-1.5 text-muted">
-          {FOOTAGE.map((c) => (
-            <li key={c.file}>
-              {c.use}: &ldquo;
-              <a className="underline" href={c.url} target="_blank" rel="noreferrer">
-                {c.title}
-              </a>
-              &rdquo; from {c.source},{" "}
-              <a className="underline" href={c.licenceUrl} target="_blank" rel="noreferrer">
-                {c.licence}
-              </a>
-            </li>
-          ))}
+          {FOOTAGE.map((c) =>
+            c.note ? (
+              <li key={c.file}>
+                {c.use}: {c.note}.
+              </li>
+            ) : (
+              <li key={c.file}>
+                {c.use}: &ldquo;
+                <a className="underline" href={c.url} target="_blank" rel="noreferrer">
+                  {c.title}
+                </a>
+                &rdquo; from {c.source},{" "}
+                <a className="underline" href={c.licenceUrl} target="_blank" rel="noreferrer">
+                  {c.licence}
+                </a>
+              </li>
+            ),
+          )}
         </ul>
 
         <h3 className="mt-6 font-semibold">Honesty notes</h3>

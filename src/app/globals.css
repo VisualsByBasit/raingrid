@@ -222,6 +222,78 @@ h3 {
   }
 }
 
+/* CSS hero (low-end devices, no WebGL, reduced motion): the Islamabad plate
+   with a slow pan, drifting monsoon cloud and rain. Phones crop toward
+   Faisal Mosque. */
+.hero-plate {
+  object-position: 50% 50%;
+  transform: scale(1.06);
+}
+@media (max-width: 767px) {
+  .hero-plate {
+    object-position: 69% 50%;
+  }
+}
+.hero-clouds {
+  opacity: 0.55;
+  background:
+    radial-gradient(40% 55% at 20% 30%, rgb(20 28 36 / 0.85), transparent 70%),
+    radial-gradient(35% 45% at 55% 20%, rgb(26 34 42 / 0.7), transparent 70%),
+    radial-gradient(45% 60% at 85% 35%, rgb(18 26 34 / 0.75), transparent 70%);
+  background-size: 200% 100%;
+  filter: blur(18px);
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+.hero-rain {
+  opacity: 0.22;
+  background-image:
+    repeating-linear-gradient(102deg, transparent 0 22px, rgb(200 225 245 / 0.5) 22px 23px, transparent 23px 61px),
+    repeating-linear-gradient(102deg, transparent 0 37px, rgb(200 225 245 / 0.35) 37px 38px, transparent 38px 97px);
+  background-size:
+    100% 140px,
+    100% 90px;
+  mask-image: repeating-linear-gradient(180deg, #000 0 18px, transparent 18px 46px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-plate-pan {
+    animation: plate-pan 40s ease-in-out infinite alternate;
+  }
+  .hero-clouds {
+    animation: clouds-drift 60s linear infinite;
+  }
+  .hero-rain {
+    animation: rain-fall 0.5s linear infinite;
+  }
+}
+@keyframes plate-pan {
+  from {
+    transform: scale(1.06) translate(-1%, 0.5%);
+  }
+  to {
+    transform: scale(1.1) translate(1%, -0.5%);
+  }
+}
+@keyframes clouds-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+@keyframes rain-fall {
+  from {
+    background-position:
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      -30px 140px,
+      -19px 90px;
+  }
+}
+
 /* Scroll cue: a thin line with a light running down it. */
 .cue-line {
   position: relative;

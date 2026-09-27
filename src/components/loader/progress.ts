@@ -1,11 +1,13 @@
 // What the first-visit loader is waiting for. Parts report 0..1; the loader
-// shows their weighted average. Stage 3 adds the 3D scene as another part.
+// shows their weighted average: fonts, the hero plate, and the 3D scene
+// (drei's useProgress over its textures, then 1 once it has mounted).
 
 type Part = { weight: number; value: number };
 
 const parts = new Map<string, Part>([
-  ["fonts", { weight: 0.3, value: 0 }],
-  ["hero", { weight: 0.7, value: 0 }],
+  ["fonts", { weight: 0.2, value: 0 }],
+  ["hero", { weight: 0.3, value: 0 }],
+  ["scene", { weight: 0.5, value: 0 }],
 ]);
 
 export function reportProgress(key: string, value: number) {

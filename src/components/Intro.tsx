@@ -33,7 +33,7 @@ export default function Intro({
       exit={{ opacity: 0, transition: { duration: 0.4 } }}
       className="bg-landing absolute inset-0 z-30 overflow-y-auto overflow-x-hidden"
     >
-      <Hero ready={ready} onStart={onStart} onSector={onSector} onSources={onSources} />
+      <Hero ready={ready} scroller={scroller} onStart={onStart} onSector={onSector} onSources={onSources} />
       <Story container={scroller} onFindRoof={onFindRoof} />
       <WhyIslamabad />
       <footer className="mx-auto max-w-5xl px-5 pb-16 text-sm text-muted">
