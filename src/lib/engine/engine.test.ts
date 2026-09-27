@@ -7,10 +7,10 @@ describe("rain engine", () => {
     expect(r.gross).toBe(1);
   });
 
-  it("matches the war-plan worked check (250 m2, 175 mm, full roof)", () => {
-    const r = calculate({ areaM2: 250, rainMm: 175, usableShare: 1, firstFlushMm: 1.5 });
-    expect(r.net.mid).toBeCloseTo(30_362.5, 5);
-    expect(roundL(r.net.mid)).toBe(30_400);
+  it("matches the sourced-default worked check (250 m2, 175 mm, full roof)", () => {
+    const r = calculate({ areaM2: 250, rainMm: 175, usableShare: 1, firstFlushMm: 0.5 });
+    expect(r.net.mid).toBeCloseTo(30_537.5, 5);
+    expect(roundL(r.net.mid)).toBe(30_500);
     expect(r.split.tank).toBe(2000);
     expect(r.split.rechargePotential).toBe(0);
   });
@@ -18,7 +18,7 @@ describe("rain engine", () => {
   it("routes overflow toward recharge only when a recharge well exists", () => {
     const r = calculate({ areaM2: 250, rainMm: 175, usableShare: 1, hasRecharge: true });
     expect(r.split.tank).toBe(2000);
-    expect(r.split.rechargePotential).toBeCloseTo(30_362.5 - 2000, 5);
+    expect(r.split.rechargePotential).toBeCloseTo(30_537.5 - 2000, 5);
   });
 
   it("conserves water: tank + recharge potential + drain + lost = gross", () => {
@@ -30,7 +30,7 @@ describe("rain engine", () => {
   });
 
   it("a drizzle below first flush stores nothing", () => {
-    const r = calculate({ areaM2: 200, rainMm: 1 });
+    const r = calculate({ areaM2: 200, rainMm: 0.2 });
     expect(r.net.mid).toBe(0);
     expect(r.split.tank).toBe(0);
   });
@@ -92,9 +92,9 @@ describe("rain engine", () => {
 });
 
 describe("tank fill", () => {
-  it("a 2,000 L tank on a 250 m2 roof fills after about 12.93 mm", () => {
-    // 2000 / (250 * 1 * 0.7) + 1.5 mm first flush
-    expect(mmToFillTank({ areaM2: 250, rainMm: 0, usableShare: 1 })).toBeCloseTo(12.928571, 5);
+  it("a 2,000 L tank on a 250 m2 roof fills after about 11.93 mm", () => {
+    // 2000 / (250 * 1 * 0.7) + 0.5 mm first flush
+    expect(mmToFillTank({ areaM2: 250, rainMm: 0, usableShare: 1 })).toBeCloseTo(11.928571, 5);
   });
   it("zero area never fills", () => {
     expect(mmToFillTank({ areaM2: 0, rainMm: 0 })).toBe(Number.POSITIVE_INFINITY);

@@ -26,9 +26,9 @@ export const ENGINE_SOURCES = {
     note: "Roof runoff coefficients: concrete 0.6–0.8; metal sheet 0.7–0.9.",
   },
   firstFlush: {
-    label: "Lebanon Ministry of Energy and Water / UNDP national guideline",
-    url: "https://www.pseau.org/outils/ouvrages/mee_pnud_national_guideline_for_rainwater_harvesting_systems_2016.pdf",
-    note: "Sizes a first-flush tank to divert about 1.5 mm of rainfall.",
+    label: "Lebanon Ministry of Agriculture / UNDP greenhouse rainwater guideline (2016)",
+    url: "https://www.pseau.org/outils/ouvrages/moe_pnud_national_guidelines_for_greenhouse_rainwater_harvesting_systems_in_the_agriculture_sector_2016.pdf",
+    note: "Uses 0.5 mm as the typical first-flush diversion height (Equation 8, p. 24).",
   },
   unit: {
     label: "Australian Government, YourHome rainwater guide",
@@ -39,9 +39,10 @@ export const ENGINE_SOURCES = {
 
 export const DEFAULTS = {
   roofType: "rcc" as RoofType,
-  firstFlushMm: 1.5,
-  // Assume 85% of the measured footprint drains to the system, allowing for
-  // stairs, tanks, solar panels and parapets. The user can adjust it.
+  firstFlushMm: 0.5,
+  // Typical roofs lose area to water tanks, the stair room and parapets, so
+  // assume 85% of the measured footprint drains to the system. The user can
+  // adjust it.
   usableShare: 0.85,
   tankLitres: 2000,
   hasRecharge: false,
