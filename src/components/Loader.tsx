@@ -2,9 +2,9 @@
 
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { useEffect, useState } from "react";
-import { markLoaderSeen, reportProgress, totalProgress } from "./loader/progress";
+import { reportProgress, totalProgress } from "./loader/progress";
 
-// First-visit loader: a droplet forming on monsoon-deep, a thin progress line
+// Loader, on every page load: a droplet forming on monsoon-deep, a thin progress line
 // and a mono percentage. Progress follows real loading (fonts, hero video;
 // the 3D scene joins in stage 3). Shows at least 1.2 s and at most 3 s, then
 // the droplet swells and the screen wipes upward to reveal the hero.
@@ -55,7 +55,6 @@ export default function Loader({ onDone }: { onDone: () => void }) {
   // AnimatePresence plays the upward wipe).
   useEffect(() => {
     if (!finishing) return;
-    markLoaderSeen();
     const t = window.setTimeout(onDone, 380);
     return () => window.clearTimeout(t);
   }, [finishing, onDone]);

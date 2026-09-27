@@ -16,7 +16,7 @@ export default function Intro({
   onSources,
   onFindRoof,
 }: {
-  // False while the first-visit loader is still on screen.
+  // False while the loader is still on screen.
   ready: boolean;
   onStart: () => void;
   onSector: (s: Sector) => void;

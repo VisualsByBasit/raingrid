@@ -1,4 +1,4 @@
-// What the first-visit loader is waiting for. Parts report 0..1; the loader
+// What the loader is waiting for. Parts report 0..1; the loader
 // shows their weighted average: fonts, the hero plate, and the 3D scene
 // (drei's useProgress over its textures, then 1 once it has mounted).
 
@@ -23,21 +23,4 @@ export function totalProgress(): number {
     weight += p.weight;
   }
   return weight ? sum / weight : 1;
-}
-
-// First visit in this browser session only.
-const SEEN = "rg-loader-seen";
-export function loaderSeen(): boolean {
-  try {
-    return window.sessionStorage.getItem(SEEN) === "1";
-  } catch {
-    return false;
-  }
-}
-export function markLoaderSeen() {
-  try {
-    window.sessionStorage.setItem(SEEN, "1");
-  } catch {
-    // Storage blocked: the loader may show again next time, which is fine.
-  }
 }

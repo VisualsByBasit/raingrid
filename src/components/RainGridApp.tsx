@@ -14,7 +14,6 @@ import type { FlyTarget } from "./MapView";
 import RainCanvas from "./RainCanvas";
 import Intro from "./Intro";
 import Loader from "./Loader";
-import { loaderSeen } from "./loader/progress";
 import PhoneSheet from "./PhoneSheet";
 import ResultPanel, { type ResultPanelProps } from "./ResultPanel";
 import SourcesDrawer from "./SourcesDrawer";
@@ -74,11 +73,10 @@ function RainGrid() {
   // shared street link can seed the initial state directly.
   const [shared] = useState(() => decodeShare(window.location.search));
   const [intro, setIntro] = useState(shared.roofs.length === 0);
-  // First-visit loader: never for shared links or reduced motion.
+  // Loader on every page load; never for shared links or reduced motion.
   const [loading, setLoading] = useState(
     () =>
       shared.roofs.length === 0 &&
-      !loaderSeen() &&
       !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   const finishLoading = useCallback(() => setLoading(false), []);
