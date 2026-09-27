@@ -11,14 +11,14 @@ npm install
 npm run dev      # http://localhost:3000
 npm test         # rain engine unit tests
 npm run build
-npm run data:footprints # refresh the static OSM fallback (networked build step)
+npm run data:footprints # rebuild the static OSM footprints (currently unused by the map)
 ```
 
 No API keys needed. Everything runs on free, keyless services.
 
 ## How it works
 
-1. Search your sector (F-7, G-11...) and tap your roof. The area comes from the building outline in OpenStreetMap, using live OpenFreeMap vector tiles plus a static six-area fallback. If your roof isn't mapped, draw it or type the area.
+1. Search your sector (F-7, G-11...) and tap your roof. The area comes from the building outline in OpenStreetMap, using live OpenFreeMap vector tiles. If your roof isn't mapped, or the live building tiles fail, draw it or type the area.
 2. Pick a real storm. Each roof uses the nearest rain gauge that reported that storm.
 3. Replay it: rain falls, litres count up, and RAIN//GRID follows the water into your tank, toward a recharge system, or to the drain. Recharge is explicitly shown as potential routing, not measured infiltration.
 4. Get a Rain Plan, then add neighbours' roofs and share a street link.
@@ -32,7 +32,7 @@ No API keys needed. Everything runs on free, keyless services.
 | `src/data/sectors.ts` | Islamabad sector search (approximate centres) |
 | `src/config/city.ts` | Everything city-specific |
 | `src/components/` | Map, rain canvas, panels |
-| `scripts/extract-footprints.mjs` | Builds the static OSM fallback for E-11, F-10, F-7, G-11, H-8 and Satellite Town, Rawalpindi |
+| `scripts/extract-footprints.mjs` | Builds `public/data/footprints/islamabad-demo.geojson` (static OSM footprints for E-11, F-10, F-7, G-11, H-8 and Satellite Town, Rawalpindi). Kept in the repo but **not used by the map**: static footprints drew on top of the live buildings, so the map now uses live buildings only, with draw and type-area as the fallback |
 | `scripts/copy-maplibre-worker.mjs` | Copies MapLibre's worker into `public/` (runs before dev and build) |
 | `docs/scope-decisions.md` | Explicit feature cuts and their honesty rationale |
 | `docs/qa/2026-09-27.md` | Desktop, mobile and production-link QA record |

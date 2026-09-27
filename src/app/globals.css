@@ -47,8 +47,8 @@
   --scene-tank: #ffffff;
   --scene-drain: var(--color-drain);
   --scene-recharge: var(--color-ground);
-  /* Rain streaks: slate-blue so they read on light backgrounds. */
-  --rain-rgb: 71, 105, 145;
+  /* Rain streaks: rain blue #38bdf8 blended 25% with white. */
+  --rain-rgb: 106, 206, 250;
 }
 
 html,

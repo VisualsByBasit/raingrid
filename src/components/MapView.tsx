@@ -30,11 +30,16 @@ interface Props {
 }
 
 type Geom = Polygon | MultiPolygon;
+// A building as the map selects it: merged outline, height, and a key for
+// the piece under the pointer.
+type Picked = { key: string; geometry: Geom; height: number };
+// A street-network link between two roofs, drawn at height z.
+type Link = { a: [number, number]; b: [number, number]; z: number };
+// One house: a single polygon part of a live building feature.
+type Part = { geometry: Polygon; h: number; base: number };
 
 const BUILDING_LAYER = "rg-buildings";
-const STATIC_BUILDING_LAYER = "rg-static-buildings";
 const HILLSHADE_LAYER = "rg-hillshade";
-const TERRAIN_SOURCE = "rg-terrain";
 const HILLSHADE_SOURCE = "rg-hillshade-dem";
 const ROOF_LAYER = "rg-roofs"; // other roofs (neighbours)
 const ROOF_ACTIVE_LAYER = "rg-roof-active";
@@ -45,6 +50,12 @@ const HOVER_LAYER = "rg-hover";
 const OUTLINE_SOURCE = "rg-hover-outline";
 const OUTLINE_GLOW_LAYER = "rg-hover-outline-glow";
 const OUTLINE_LAYER = "rg-hover-outline";
+const LINKS_LAYER = "rg-links";
+const LINKS_RAIL_LAYER = "rg-links-rail";
+// Invisible per-house copy of the live buildings, used only for picking.
+const PICK_SOURCE = "rg-pick";
+const PICK_LAYER = "rg-pick";
+const RAIN_BLUE = "#38bdf8";
 const LARGE_ROOF_M2 = 5000;
 const PART_TOLERANCE_M = 0.5;
 
@@ -57,7 +68,7 @@ const ROOF_START = "#e6edf4";
 const HOVER_COLOR = "#a5d8f7";
 const HOVER_LIFT = 3;
 const OUTLINE = "#0ea5e9";
-const OUTLINE_CLEAR = "rgba(14, 165, 233, 0)";
+const OUTLINE_GLOW = "#7dd3fc";
 const SELECT_MS = 300;
 const HOVER_MS = 250;
 const NO_TRANSITION = { duration: 0, delay: 0 };
@@ -117,11 +128,15 @@ export default function MapView(props: Props) {
   const ready = useRef(false);
   const flown = useRef(false);
   const glowRaf = useRef(0);
+  const linkRaf = useRef(0);
+  const linkData = useRef<Link[]>([]);
   // Selected-roof tween state: current lift (0..1) and colour.
   const roofAnim = useRef({ raf: 0, lift: 1, color: ROOF_ACTIVE, activeId: null as string | null });
   // The pieces each map roof is made of, so added parts can be removed again.
   const parts = useRef(new Map<string, Geom[]>());
   const [notice, setNotice] = useState<{ text: string; key: number } | null>(null);
+  // The roof id whose selection came out over LARGE_ROOF_M2, if any.
+  const [largeId, setLargeId] = useState<string | null>(null);
   const latest = useRef(props);
   useLayoutEffect(() => {
     latest.current = props;
@@ -194,55 +209,33 @@ export default function MapView(props: Props) {
       if (!styleLoaded && !(e as unknown as { sourceId?: string }).sourceId) switchToFallback();
     });
 
-    // No elevation? Keep the map, go flat.
-    let demErrors = 0;
-    m.on("error", (e) => {
-      const sourceId = (e as unknown as { sourceId?: string }).sourceId;
-      if (sourceId !== TERRAIN_SOURCE && sourceId !== HILLSHADE_SOURCE) return;
-      demErrors += 1;
-      if (demErrors === 4) disableTerrain(m);
-    });
+    // Hillshade DEM tile errors carry a sourceId, so neither handler above
+    // reacts to them; a missing DEM tile just leaves that tile unshaded.
 
-    // Static footprints stay hidden unless live building tiles fail: repeated
-    // tile errors, or nothing live rendered 8 s after reaching zoom 15.
-    let staticShown = false;
-    let liveErrors = 0;
-    let liveTimer = 0;
-    const showStatic = () => {
-      if (staticShown) return;
-      staticShown = true;
-      if (m.getLayer(STATIC_BUILDING_LAYER)) m.setLayoutProperty(STATIC_BUILDING_LAYER, "visibility", "visible");
-    };
-    m.on("error", (e) => {
-      if ((e as unknown as { sourceId?: string }).sourceId !== "openmaptiles") return;
-      liveErrors += 1;
-      if (liveErrors >= 3) showStatic();
-    });
-    const checkLive = () => {
-      if (staticShown || liveTimer || m.getZoom() < 15) return;
-      liveTimer = window.setTimeout(() => {
-        liveTimer = 0;
-        if (staticShown || !ready.current || m.getZoom() < 15) return;
-        const live = m.getLayer(BUILDING_LAYER) ? m.queryRenderedFeatures({ layers: [BUILDING_LAYER] }) : [];
-        if (!live.length) showStatic();
-      }, 8000);
-    };
-    m.on("moveend", checkLive);
-
-    // Hover, resolved at most once per frame. The hovered building is copied
-    // into its own source (live building ids are not unique), lifted, and
-    // outlined by a glowing line that grows from the cursor around the footprint.
+    // Hover, resolved at most once per frame. The hovered house is copied into
+    // its own source, lifted, and outlined by a glowing rim that traces around
+    // its footprint from the cursor. The rim sits on the lifted roof as a thin
+    // 3D ribbon: a flat line would be hidden behind neighbouring buildings.
     let hoverKey = "";
     let hoverPoint: { x: number; y: number } | null = null;
     let hoverRaf = 0;
     let hoverAnim = 0;
+    let hoverPath: number[][] = [];
+    let hoverHeight = 0;
     const applyHover = (k: number) => {
       if (!m.getLayer(HOVER_LAYER)) return;
       m.setPaintProperty(HOVER_LAYER, "fill-extrusion-height", ["+", ["get", "h"], HOVER_LIFT * k]);
       m.setPaintProperty(HOVER_LAYER, "fill-extrusion-opacity", 0.95 * Math.min(1, k * 1.5));
-      const gradient = outlineGradient(k);
-      m.setPaintProperty(OUTLINE_LAYER, "line-gradient", gradient);
-      m.setPaintProperty(OUTLINE_GLOW_LAYER, "line-gradient", gradient);
+      const z = hoverHeight + HOVER_LIFT * k;
+      // Rim widths are set in screen pixels so it reads at any zoom.
+      const px = hoverPath.length ? metresPerPixel(m, hoverPath[0][1]) : 1;
+      (m.getSource(OUTLINE_SOURCE) as GeoJSONSource | undefined)?.setData({
+        type: "FeatureCollection",
+        features: [
+          { type: "Feature", properties: { z, glow: true }, geometry: traceRibbon(hoverPath, k, 6 * px) },
+          { type: "Feature", properties: { z, glow: false }, geometry: traceRibbon(hoverPath, k, 2 * px) },
+        ],
+      });
     };
     const animateHover = () => {
       cancelAnimationFrame(hoverAnim);
@@ -260,29 +253,87 @@ export default function MapView(props: Props) {
       };
       hoverAnim = requestAnimationFrame(step);
     };
-    const setHover = (hit?: MapGeoJSONFeature, at?: [number, number]) => {
-      const geom = hit && isPolygonal(hit.geometry) ? hit.geometry : undefined;
-      const key = hit && geom ? (hit.layer.id === STATIC_BUILDING_LAYER ? `s:${hit.id}` : geometryKey(geom)) : "";
+    // OpenFreeMap merges many houses into one MultiPolygon feature per tile
+    // (one F-10 feature covers ~70,000 m2), so a feature is not a building.
+    // Every polygon part is one house: explode the loaded live buildings into
+    // parts and keep them in an invisible extrusion layer, so MapLibre's own
+    // 3D hit test picks the exact house under the pointer.
+    let houses: Part[] = [];
+    let pickDirty = true;
+    let lastPick: { key: string; building: Picked } | null = null;
+    const refreshPick = () => {
+      const src = m.getSource(PICK_SOURCE) as GeoJSONSource | undefined;
+      if (!src || !m.getSource("openmaptiles")) return;
+      pickDirty = false;
+      const seen = new Set<string>();
+      const next: Part[] = [];
+      for (const f of m.querySourceFeatures("openmaptiles", { sourceLayer: "building" })) {
+        if (!isPolygonal(f.geometry)) continue;
+        const h = Number(f.properties?.render_height ?? 6);
+        const base = Number(f.properties?.render_min_height ?? 0);
+        const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+        for (const coordinates of polys) {
+          const geometry: Polygon = { type: "Polygon", coordinates };
+          const key = geometryKey(geometry);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          next.push({ geometry, h: Number.isFinite(h) ? h : 6, base: Number.isFinite(base) ? base : 0 });
+        }
+      }
+      houses = next;
+      lastPick = null;
+      src.setData({
+        type: "FeatureCollection",
+        features: next.map((part, i) => ({ type: "Feature", id: i, properties: { i, h: part.h, b: part.base }, geometry: part.geometry })),
+      });
+    };
+    m.on("sourcedata", (e) => {
+      if (e.sourceId === "openmaptiles" && (e as { tile?: unknown }).tile) pickDirty = true;
+    });
+    const maybeRefreshPick = () => {
+      if (pickDirty && ready.current && m.getZoom() >= 13.5) refreshPick();
+    };
+    m.on("idle", maybeRefreshPick);
+    m.on("moveend", maybeRefreshPick);
+
+    // What a click at this point would select: the house under the point,
+    // merged with its own pieces across tile edges. Hover and click both use
+    // it, so the highlighted building is exactly the one that gets selected.
+    const pickAt = (point: { x: number; y: number }): Picked | null => {
+      if (!m.getLayer(PICK_LAYER)) return null;
+      const hit = m.queryRenderedFeatures([point.x, point.y], { layers: [PICK_LAYER] })[0];
+      const part = hit ? houses[Number(hit.properties?.i)] : undefined;
+      if (!part) return null;
+      const key = geometryKey(part.geometry);
+      if (lastPick?.key === key) return lastPick.building;
+      const merged = mergePieces(
+        tileEdgePieces(part, houses).map((g) => ({ type: "Feature", properties: {}, geometry: g }) as Feature<Geom>),
+      );
+      if (!merged) return null;
+      const building = { key, geometry: merged.geometry, height: part.h };
+      lastPick = { key, building };
+      return building;
+    };
+
+    const setHover = (picked?: Picked | null, at?: [number, number]) => {
+      const key = picked?.key ?? "";
       if (key === hoverKey) return;
       hoverKey = key;
-      if (!hit || !geom || !at) {
+      if (!picked || !at) {
         cancelAnimationFrame(hoverAnim);
         hoverAnim = 0;
         (m.getSource(HOVER_SOURCE) as GeoJSONSource | undefined)?.setData(emptyFC());
         (m.getSource(OUTLINE_SOURCE) as GeoJSONSource | undefined)?.setData(emptyFC());
         return;
       }
-      const h = Number(hit.properties?.render_height ?? hit.properties?.height ?? 6);
       // Pushed out slightly so its walls don't z-fight the building's.
-      const inflated = inflate(geom, 1.03);
+      const inflated = inflate(picked.geometry, 1.03);
       (m.getSource(HOVER_SOURCE) as GeoJSONSource | undefined)?.setData({
         type: "FeatureCollection",
-        features: [{ type: "Feature", properties: { h: Number.isFinite(h) ? h : 6 }, geometry: inflated }],
+        features: [{ type: "Feature", properties: { h: picked.height }, geometry: inflated }],
       });
-      (m.getSource(OUTLINE_SOURCE) as GeoJSONSource | undefined)?.setData({
-        type: "FeatureCollection",
-        features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: outlineFrom(inflated, at) } }],
-      });
+      hoverPath = outlineFrom(inflated, at);
+      hoverHeight = picked.height;
       animateHover();
     };
     const setCursor = (state: "hidden" | "idle" | "over") => {
@@ -296,8 +347,9 @@ export default function MapView(props: Props) {
       styleLoaded = true;
       window.clearTimeout(styleTimer);
       hoverKey = "";
-      if (!m.getSource("openmaptiles")) staticShown = true;
-      decorate(m, slow, staticShown);
+      lastPick = null;
+      pickDirty = true;
+      decorate(m, slow);
       ready.current = true;
       roofAnim.current.activeId = null;
       syncRoofs();
@@ -313,23 +365,51 @@ export default function MapView(props: Props) {
       else m.jumpTo(pose);
     });
 
-    m.on("zoomend", () => latest.current.onZoom(m.getZoom()));
+    m.on("zoomend", () => {
+      latest.current.onZoom(m.getZoom());
+      if (ready.current && linkData.current.length) setLinkFlow(m, linkRaf, linkData);
+    });
     // A user who starts moving the map before load keeps control.
     m.on("movestart", (e) => {
       if ((e as { originalEvent?: Event }).originalEvent) flown.current = true;
     });
 
+    // While dragging (or any mouse button is held) skip all hover work so the
+    // pointer never lags behind the map.
+    let dragging = false;
+    const pauseHover = () => {
+      if (hoverRaf) cancelAnimationFrame(hoverRaf);
+      hoverRaf = 0;
+      if (ready.current) setHover();
+      setCursor("hidden");
+      if (latest.current.mode !== "draw") m.getCanvas().style.cursor = "grabbing";
+    };
+    m.on("dragstart", () => {
+      dragging = true;
+      pauseHover();
+    });
+    m.on("dragend", () => {
+      dragging = false;
+      m.getCanvas().style.cursor = "";
+      if (hoverPoint && !hoverRaf) hoverRaf = requestAnimationFrame(resolveHover);
+    });
+
     const resolveHover = () => {
       hoverRaf = 0;
-      if (!ready.current || !hoverPoint) return;
+      if (!ready.current || !hoverPoint || dragging) return;
+      // The ring follows the pointer with a CSS transform on a ref; no React state.
+      if (fancyCursor && cursorEl.current) {
+        cursorEl.current.style.transform = `translate3d(${hoverPoint.x}px, ${hoverPoint.y}px, 0)`;
+      }
       if (latest.current.mode === "draw") {
         setHover();
         setCursor("hidden");
         m.getCanvas().style.cursor = "crosshair";
         return;
       }
-      const layers = selectableBuildingLayers(m);
-      const hit = layers.length ? m.queryRenderedFeatures([hoverPoint.x, hoverPoint.y], { layers })[0] : undefined;
+      // Camera still easing or flying: move the ring, skip the feature query.
+      if (m.isMoving()) return;
+      const hit = pickAt(hoverPoint);
       if (fancyCursor) {
         m.getCanvas().style.cursor = "none";
         setCursor(hit ? "over" : "idle");
@@ -341,39 +421,20 @@ export default function MapView(props: Props) {
     };
     m.on("mousemove", (e) => {
       hoverPoint = e.point;
-      // The ring follows the pointer directly; no React state involved.
-      if (fancyCursor && cursorEl.current) {
-        cursorEl.current.style.transform = `translate3d(${e.point.x}px, ${e.point.y}px, 0)`;
+      if (dragging || e.originalEvent.buttons !== 0) {
+        if (hoverRaf || hoverKey) pauseHover();
+        return;
       }
       if (!hoverRaf) hoverRaf = requestAnimationFrame(resolveHover);
     });
     m.on("mouseout", () => {
       hoverPoint = null;
+      if (hoverRaf) cancelAnimationFrame(hoverRaf);
+      hoverRaf = 0;
       if (ready.current) setHover();
       setCursor("hidden");
       m.getCanvas().style.cursor = "";
     });
-
-    // Clicked building: live pieces merge only across tile edges; static
-    // footprints have real unique ids.
-    const clickedBuilding = (f: MapGeoJSONFeature) => {
-      let pieces: MapGeoJSONFeature[] = [f];
-      if (f.layer.id === STATIC_BUILDING_LAYER) {
-        if (f.id !== undefined && f.id !== null) {
-          pieces = m
-            .queryRenderedFeatures({ layers: [f.layer.id] })
-            .filter((x) => x.id === f.id);
-          if (!pieces.length) pieces = [f];
-        }
-      } else {
-        pieces = tileEdgePieces(m, f);
-      }
-      return mergePieces(
-        pieces
-          .filter((x) => isPolygonal(x.geometry))
-          .map((x) => ({ type: "Feature", properties: {}, geometry: x.geometry }) as Feature<Geom>),
-      );
-    };
 
     // Rebuild a roof from its parts: one merged outline, fresh area.
     const setParts = (roof: Roof, next: Geom[], text: string) => {
@@ -381,8 +442,10 @@ export default function MapView(props: Props) {
       if (!merged) return;
       parts.current.set(roof.id, next);
       const [lng, lat] = centroidOf(merged.geometry);
-      latest.current.onUpdateRoof({ ...roof, geometry: merged.geometry, areaM2: Math.round(areaOf(merged)), lat, lng });
+      const areaM2 = Math.round(areaOf(merged));
+      latest.current.onUpdateRoof({ ...roof, geometry: merged.geometry, areaM2, lat, lng });
       setNotice({ text, key: Date.now() });
+      setLargeId(areaM2 > LARGE_ROOF_M2 ? roof.id : null);
     };
 
     m.on("click", (e) => {
@@ -392,11 +455,8 @@ export default function MapView(props: Props) {
         p.onDrawPoint([e.lngLat.lng, e.lngLat.lat]);
         return;
       }
-      const layers = selectableBuildingLayers(m);
-      if (!layers.length) return;
-      const hits = m.queryRenderedFeatures(e.point, { layers });
-      if (!hits.length) return;
-      const f = hits[0];
+      const picked = pickAt(e.point);
+      if (!picked) return;
       const tap: [number, number] = [e.lngLat.lng, e.lngLat.lat];
 
       // Multi-part houses: while your roof is selected, a touching building
@@ -414,21 +474,18 @@ export default function MapView(props: Props) {
           return;
         }
         if (containsPoint(active.geometry, tap)) return;
-        const piece = clickedBuilding(f);
-        if (piece && touches(active.geometry, piece.geometry, PART_TOLERANCE_M)) {
-          setParts(active, [...own, piece.geometry], "Part added. Tap again to remove.");
+        if (touches(active.geometry, picked.geometry, PART_TOLERANCE_M)) {
+          setParts(active, [...own, picked.geometry], "Part added. Tap again to remove.");
           return;
         }
       }
 
-      const merged = clickedBuilding(f);
-      if (!merged) return;
-      const area = areaOf(merged);
+      const area = areaOf({ type: "Feature", properties: {}, geometry: picked.geometry });
       if (area < 8) return;
-      const [lng, lat] = centroidOf(merged.geometry);
-      const h = Number(f.properties?.render_height ?? f.properties?.height ?? 6);
+      const [lng, lat] = centroidOf(picked.geometry);
       const id = newRoofId("b");
-      parts.current.set(id, [merged.geometry]);
+      parts.current.set(id, [picked.geometry]);
+      setLargeId(area > LARGE_ROOF_M2 ? id : null);
       p.onPick({
         id,
         label: "Selected roof",
@@ -436,8 +493,8 @@ export default function MapView(props: Props) {
         lat,
         lng,
         source: "map",
-        geometry: merged.geometry,
-        height: Number.isFinite(h) ? h : 6,
+        geometry: picked.geometry,
+        height: picked.height,
       });
       m.easeTo({
         center: [lng, lat],
@@ -451,13 +508,14 @@ export default function MapView(props: Props) {
     const anim = roofAnim.current;
     return () => {
       window.clearTimeout(styleTimer);
-      window.clearTimeout(liveTimer);
       if (hoverRaf) cancelAnimationFrame(hoverRaf);
       cancelAnimationFrame(hoverAnim);
       cancelAnimationFrame(glowRaf.current);
+      cancelAnimationFrame(linkRaf.current);
       cancelAnimationFrame(anim.raf);
       glowRaf.current = 0;
       anim.raf = 0;
+      linkRaf.current = 0;
       m.remove();
       map.current = null;
       ready.current = false;
@@ -487,15 +545,14 @@ export default function MapView(props: Props) {
       tweenRoof(m, anim, raining ? ROOF_ACTIVE_RAIN : ROOF_ACTIVE);
     }
     anim.activeId = hasActive ? activeRoofId : null;
-    const links: Feature[] = [];
+    const links: Link[] = [];
     for (let i = 1; i < roofs.length; i++) {
-      links.push({
-        type: "Feature",
-        properties: {},
-        geometry: { type: "LineString", coordinates: [[roofs[i - 1].lng, roofs[i - 1].lat], [roofs[i].lng, roofs[i].lat]] },
-      });
+      const a = roofs[i - 1];
+      const b = roofs[i];
+      links.push({ a: [a.lng, a.lat], b: [b.lng, b.lat], z: Math.max(a.height ?? 6, b.height ?? 6) + ROOF_LIFT + 1.5 });
     }
-    (m.getSource("rg-links") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: links });
+    linkData.current = links;
+    setLinkFlow(m, linkRaf, linkData);
   }
 
   function syncDraw() {
@@ -546,8 +603,10 @@ export default function MapView(props: Props) {
     });
   }, [props.flyTarget]);
 
-  const active = props.roofs.find((r) => r.id === props.activeRoofId);
-  const large = active?.source === "map" && active.areaM2 > LARGE_ROOF_M2;
+  // Shown only while the large roof that was just selected is still the
+  // selected roof and still over the limit; any other selection hides it.
+  const active = largeId && props.activeRoofId === largeId ? props.roofs.find((r) => r.id === largeId) : undefined;
+  const large = Boolean(active && active.areaM2 > LARGE_ROOF_M2);
   return (
     <>
       {/* Inline position: maplibre-gl.css sets .maplibregl-map { position: relative }, which
@@ -560,12 +619,14 @@ export default function MapView(props: Props) {
         data-over="false"
         className="group pointer-events-none absolute left-0 top-0 z-10 hidden will-change-transform"
       >
-        <div className="flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-sky-500 bg-white/30 shadow-[0_0_10px_rgba(14,165,233,0.35)] transition-all duration-200 ease-out group-data-[over=true]:h-7 group-data-[over=true]:w-16 group-data-[over=true]:bg-white/85">
-          <span className="h-1 w-1 rounded-full bg-sky-500 group-data-[over=true]:hidden" />
-          <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-sky-600 group-data-[over=true]:inline">
-            select
-          </span>
+        {/* The ring stays small and see-through so the highlighted building
+            under it stays visible; "select" appears beside it. */}
+        <div className="flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.45)] transition-all duration-200 ease-out group-data-[over=true]:h-6 group-data-[over=true]:w-6">
+          <span className="h-1 w-1 rounded-full bg-sky-500" />
         </div>
+        <span className="absolute left-4 top-1 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700 opacity-0 shadow-sm transition-opacity duration-150 group-data-[over=true]:opacity-100">
+          select
+        </span>
       </div>
       <div className="pointer-events-none absolute left-1/2 top-28 z-10 flex max-w-[90vw] -translate-x-1/2 flex-col items-center gap-2 md:top-14">
         {notice && (
@@ -585,7 +646,7 @@ export default function MapView(props: Props) {
 
 // Everything RAIN//GRID adds on top of the base style. Runs on every style
 // load, so the local fallback style gets the same 3D scene.
-function decorate(m: MLMap, slow: boolean, showStatic: boolean) {
+function decorate(m: MLMap, slow: boolean) {
   const firstSymbol = m.getStyle().layers.find((l) => l.type === "symbol")?.id;
 
   m.setSky({
@@ -599,18 +660,18 @@ function decorate(m: MLMap, slow: boolean, showStatic: boolean) {
   });
   m.setLight({ anchor: "map", position: [1.4, 225, 40], color: "#ffffff", intensity: 0.32 });
 
+  // No 3D terrain: buildings, outlines and roofs stay exactly aligned with
+  // the flat map. The Margalla Hills still read through a subtle hillshade
+  // from its own DEM source.
   if (!slow) {
-    const dem = {
-      type: "raster-dem" as const,
+    m.addSource(HILLSHADE_SOURCE, {
+      type: "raster-dem",
       tiles: [TERRARIUM],
-      encoding: "terrarium" as const,
+      encoding: "terrarium",
       tileSize: 256,
       maxzoom: 15,
       attribution: ELEVATION_CREDIT,
-    };
-    // Separate sources for terrain and hillshade, as MapLibre recommends.
-    m.addSource(TERRAIN_SOURCE, dem);
-    m.addSource(HILLSHADE_SOURCE, dem);
+    });
     const hillshadeBefore = m.getLayer("waterway") ? "waterway" : m.getLayer("water") ? "water" : undefined;
     m.addLayer(
       {
@@ -627,38 +688,14 @@ function decorate(m: MLMap, slow: boolean, showStatic: boolean) {
       },
       hillshadeBefore,
     );
-    try {
-      m.setTerrain({ source: TERRAIN_SOURCE, exaggeration: 1.3 });
-    } catch {
-      disableTerrain(m);
-    }
   }
 
-  // Mustafa's prebaked OSM footprints for the five demo sectors. Hidden
-  // unless live building tiles fail, so the two never draw on top of each other.
-  m.addSource("static-buildings", {
-    type: "geojson",
-    data: "/data/footprints/islamabad-demo.geojson",
-    promoteId: "id",
-  });
-  const staticHeight: ExpressionSpecification = ["coalesce", ["get", "height"], 6];
-  m.addLayer(
-    {
-      id: STATIC_BUILDING_LAYER,
-      type: "fill-extrusion",
-      source: "static-buildings",
-      minzoom: 12,
-      layout: { visibility: showStatic ? "visible" : "none" },
-      paint: {
-        "fill-extrusion-color": buildingColor(staticHeight),
-        "fill-extrusion-height": staticHeight,
-        "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 12, 0, 13, 0.92],
-        "fill-extrusion-vertical-gradient": true,
-      },
-    },
-    firstSymbol,
-  );
+  // One set of buildings only: hide the basemap's own building layers.
+  for (const layer of m.getStyle().layers) {
+    if ("source-layer" in layer && layer["source-layer"] === "building") {
+      m.setLayoutProperty(layer.id, "visibility", "none");
+    }
+  }
 
   // Live buildings from OpenFreeMap: fade and grow in between z14 and z15.
   if (m.getSource("openmaptiles")) {
@@ -690,6 +727,25 @@ function decorate(m: MLMap, slow: boolean, showStatic: boolean) {
     );
   }
 
+  // Invisible per-house pick layer (see refreshPick). Same heights as the
+  // live layer; opacity 0 is never drawn but is still hit-tested.
+  m.addSource(PICK_SOURCE, { type: "geojson", data: emptyFC(), tolerance: 0 });
+  m.addLayer(
+    {
+      id: PICK_LAYER,
+      type: "fill-extrusion",
+      source: PICK_SOURCE,
+      minzoom: 14,
+      paint: {
+        "fill-extrusion-color": "#000000",
+        "fill-extrusion-opacity": 0,
+        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15, ["get", "h"]],
+        "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 14, 0, 15, ["get", "b"]],
+      },
+    },
+    firstSymbol,
+  );
+
   // The hovered building, lifted and tinted (tweened in by the hover loop).
   m.addSource(HOVER_SOURCE, { type: "geojson", data: emptyFC() });
   m.addLayer(
@@ -710,28 +766,38 @@ function decorate(m: MLMap, slow: boolean, showStatic: boolean) {
     },
     firstSymbol,
   );
-  // Its footprint outline: a soft glow plus a crisp line, revealed along the
-  // line from the cursor by animating line-gradient.
-  m.addSource(OUTLINE_SOURCE, { type: "geojson", data: emptyFC(), lineMetrics: true });
+  // Its outline: a glowing rim on top of the lifted house (a wide soft
+  // ribbon plus a crisp thin one), traced on from the cursor by the hover loop.
+  m.addSource(OUTLINE_SOURCE, { type: "geojson", data: emptyFC() });
   m.addLayer(
     {
       id: OUTLINE_GLOW_LAYER,
-      type: "line",
+      type: "fill-extrusion",
       source: OUTLINE_SOURCE,
       minzoom: 12,
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-width": 8, "line-blur": 6, "line-opacity": 0.55, "line-gradient": outlineGradient(1) },
+      filter: ["==", ["get", "glow"], true],
+      paint: {
+        "fill-extrusion-color": OUTLINE_GLOW,
+        "fill-extrusion-base": ["get", "z"],
+        "fill-extrusion-height": ["+", ["get", "z"], 0.15],
+        "fill-extrusion-opacity": 0.45,
+      },
     },
     firstSymbol,
   );
   m.addLayer(
     {
       id: OUTLINE_LAYER,
-      type: "line",
+      type: "fill-extrusion",
       source: OUTLINE_SOURCE,
       minzoom: 12,
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-width": 2, "line-gradient": outlineGradient(1) },
+      filter: ["==", ["get", "glow"], false],
+      paint: {
+        "fill-extrusion-color": OUTLINE,
+        "fill-extrusion-base": ["get", "z"],
+        "fill-extrusion-height": ["+", ["get", "z"], 0.35],
+        "fill-extrusion-opacity": 0.95,
+      },
     },
     firstSymbol,
   );
@@ -792,12 +858,33 @@ function decorate(m: MLMap, slow: boolean, showStatic: boolean) {
     },
   });
 
+  // Street "network": dashes flowing from roof to roof just above the roofs
+  // (drawn as thin 3D ribbons so roofs can't hide them), animated by
+  // setLinkFlow.
   m.addSource("rg-links", { type: "geojson", data: emptyFC() });
   m.addLayer({
-    id: "rg-links",
-    type: "line",
+    id: LINKS_RAIL_LAYER,
+    type: "fill-extrusion",
     source: "rg-links",
-    paint: { "line-color": ROOF_ACTIVE, "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] },
+    filter: ["==", ["get", "rail"], true],
+    paint: {
+      "fill-extrusion-color": "#ffffff",
+      "fill-extrusion-base": ["get", "z"],
+      "fill-extrusion-height": ["+", ["get", "z"], 0.2],
+      "fill-extrusion-opacity": 0.85,
+    },
+  });
+  m.addLayer({
+    id: LINKS_LAYER,
+    type: "fill-extrusion",
+    source: "rg-links",
+    filter: ["==", ["get", "rail"], false],
+    paint: {
+      "fill-extrusion-color": RAIN_BLUE,
+      "fill-extrusion-base": ["+", ["get", "z"], 0.2],
+      "fill-extrusion-height": ["+", ["get", "z"], 0.6],
+      "fill-extrusion-opacity": 0.95,
+    },
   });
 
   m.addSource("rg-draw", { type: "geojson", data: emptyFC() });
@@ -851,6 +938,46 @@ function tweenRoof(m: MLMap, anim: { raf: number; lift: number; color: string },
   anim.raf = requestAnimationFrame(step);
 }
 
+// Network dashes, in screen pixels: 10 px dash, 6 px gap, 3 px wide,
+// flowing at 40 px/s.
+const DASH_PX = 10;
+const GAP_PX = 6;
+const LINK_WIDTH_PX = 3;
+const RAIL_WIDTH_PX = 6;
+const FLOW_PX_PER_S = 40;
+
+// Draw the links as dashes and keep them flowing while there are links.
+// Updates ~20 times a second from requestAnimationFrame; no React state.
+function setLinkFlow(m: MLMap, raf: { current: number }, data: { current: Link[] }) {
+  const draw = (t: number) => {
+    const links = data.current;
+    const px = links.length ? metresPerPixel(m, links[0].a[1]) : 1;
+    const dash = DASH_PX * px;
+    const gap = GAP_PX * px;
+    const phase = ((t / 1000) * FLOW_PX_PER_S * px) % (dash + gap);
+    (m.getSource("rg-links") as GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: links.flatMap((l) => [
+        // A soft white rail under the dashes keeps them readable on blue roofs.
+        { type: "Feature", properties: { z: l.z, rail: true }, geometry: railRibbon(l.a, l.b, RAIL_WIDTH_PX * px) },
+        { type: "Feature", properties: { z: l.z, rail: false }, geometry: dashRibbons(l.a, l.b, phase, dash, gap, LINK_WIDTH_PX * px) },
+      ]),
+    });
+  };
+  cancelAnimationFrame(raf.current);
+  raf.current = 0;
+  draw(0);
+  if (!data.current.length || prefersReducedMotion()) return;
+  let last = 0;
+  const tick = (t: number) => {
+    raf.current = requestAnimationFrame(tick);
+    if (t - last < 50) return;
+    last = t;
+    draw(t);
+  };
+  raf.current = requestAnimationFrame(tick);
+}
+
 // Slow, soft pulse on the selected roof. Throttled to ~15 fps and only
 // touches paint properties, never React state.
 function setGlow(m: MLMap, raf: { current: number }, on: boolean) {
@@ -878,13 +1005,95 @@ function setGlow(m: MLMap, raf: { current: number }, on: boolean) {
   raf.current = requestAnimationFrame(tick);
 }
 
-// Outline revealed from both ends of the line (the cursor point) towards the
-// far side of the footprint: k = 0 shows nothing, k = 1 the whole outline.
-function outlineGradient(k: number): ExpressionSpecification {
-  if (k >= 0.998) return ["interpolate", ["linear"], ["line-progress"], 0, OUTLINE, 1, OUTLINE];
-  const a = Math.max(0.001, k / 2);
-  const e = 0.0005;
-  return ["interpolate", ["linear"], ["line-progress"], 0, OUTLINE, a, OUTLINE, a + e, OUTLINE_CLEAR, 1 - a - e, OUTLINE_CLEAR, 1 - a, OUTLINE, 1, OUTLINE];
+// Ground metres covered by one screen pixel at the map centre's zoom
+// (MapLibre uses 512 px tiles).
+function metresPerPixel(m: MLMap, lat: number) {
+  return (40_075_016.686 * Math.cos((lat * Math.PI) / 180)) / (512 * 2 ** m.getZoom());
+}
+
+// Local metres around a reference latitude, for building ribbons.
+function metresFrame(lat0: number) {
+  const kx = M_PER_DEG_LNG_EQ * Math.cos((lat0 * Math.PI) / 180);
+  return {
+    to: (c: number[]): XY => [c[0] * kx, c[1] * M_PER_DEG_LAT],
+    from: (p: XY): number[] => [p[0] / kx, p[1] / M_PER_DEG_LAT],
+  };
+}
+
+// A flat quad of the given width along segment p-q (in metres), extended by
+// half the width at both ends so consecutive quads close their corners.
+function quad(p: XY, q: XY, width: number): XY[] {
+  const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+  const ux = (q[0] - p[0]) / len;
+  const uy = (q[1] - p[1]) / len;
+  const hw = width / 2;
+  const a: XY = [p[0] - ux * hw, p[1] - uy * hw];
+  const b: XY = [q[0] + ux * hw, q[1] + uy * hw];
+  const nx = -uy * hw;
+  const ny = ux * hw;
+  return [
+    [a[0] + nx, a[1] + ny],
+    [b[0] + nx, b[1] + ny],
+    [b[0] - nx, b[1] - ny],
+    [a[0] - nx, a[1] - ny],
+    [a[0] + nx, a[1] + ny],
+  ];
+}
+
+// The outline path as ribbon quads, revealed from both ends (the cursor
+// point) towards the far side: k = 0 shows nothing, k = 1 the whole outline.
+function traceRibbon(path: number[][], k: number, width: number): MultiPolygon {
+  if (path.length < 2 || k <= 0) return { type: "MultiPolygon", coordinates: [] };
+  const f = metresFrame(path[0][1]);
+  const pts = path.map(f.to);
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = cum[cum.length - 1] || 1;
+  const reach = Math.min(1, k) * (total / 2);
+  const spans: [number, number][] = k >= 0.998 ? [[0, total]] : [[0, reach], [total - reach, total]];
+  const at = (d: number): XY => {
+    let i = 1;
+    while (i < cum.length - 1 && cum[i] < d) i++;
+    const t = (d - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+    return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t];
+  };
+  const polys: number[][][][] = [];
+  for (const [s0, s1] of spans) {
+    if (s1 - s0 < 0.05) continue;
+    const stops = [s0, ...cum.filter((c) => c > s0 && c < s1), s1];
+    for (let i = 1; i < stops.length; i++) {
+      if (stops[i] - stops[i - 1] < 0.01) continue;
+      polys.push([quad(at(stops[i - 1]), at(stops[i]), width).map(f.from)]);
+    }
+  }
+  return { type: "MultiPolygon", coordinates: polys };
+}
+
+// One solid ribbon from a to b.
+function railRibbon(a: [number, number], b: [number, number], width: number): MultiPolygon {
+  const f = metresFrame(a[1]);
+  const p = f.to(a);
+  const q = f.to(b);
+  if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.5) return { type: "MultiPolygon", coordinates: [] };
+  return { type: "MultiPolygon", coordinates: [[quad(p, q, width).map(f.from)]] };
+}
+
+// Dashes from a to b, shifted by `phase` metres so they flow towards b.
+function dashRibbons(a: [number, number], b: [number, number], phase: number, dash: number, gap: number, width: number): MultiPolygon {
+  const f = metresFrame(a[1]);
+  const p = f.to(a);
+  const q = f.to(b);
+  const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+  const polys: number[][][][] = [];
+  if (len < 0.5) return { type: "MultiPolygon", coordinates: polys };
+  const point = (d: number): XY => [p[0] + ((q[0] - p[0]) * d) / len, p[1] + ((q[1] - p[1]) * d) / len];
+  const period = dash + gap;
+  for (let start = phase - period; start < len; start += period) {
+    const s0 = Math.max(0, start);
+    const s1 = Math.min(len, start + dash);
+    if (s1 - s0 > 0.1) polys.push([quad(point(s0), point(s1), width).map(f.from)]);
+  }
+  return { type: "MultiPolygon", coordinates: polys };
 }
 
 // The footprint's outer ring as a line that starts and ends at the point on
@@ -923,15 +1132,6 @@ function outlineFrom(g: Geom, at: [number, number]): number[][] {
   return line;
 }
 
-function disableTerrain(m: MLMap) {
-  try {
-    m.setTerrain(null);
-    if (m.getLayer(HILLSHADE_LAYER)) m.removeLayer(HILLSHADE_LAYER);
-  } catch {
-    // Map may already be gone; nothing to undo.
-  }
-}
-
 function easeOutCubic(k: number) {
   return 1 - (1 - k) ** 3;
 }
@@ -958,24 +1158,21 @@ function isPolygonal(g: MapGeoJSONFeature["geometry"]): g is Geom {
   return g.type === "Polygon" || g.type === "MultiPolygon";
 }
 
-// Live buildings split across tile edges come back as several pieces. Grow
-// the clicked piece only with pieces that touch or overlap it (0.5 m
-// tolerance), share its render_height, and sit near a tile edge, so
-// neighbouring buildings that merely share a wall are left alone.
-function tileEdgePieces(m: MLMap, f: MapGeoJSONFeature): MapGeoJSONFeature[] {
-  if (!isPolygonal(f.geometry) || !nearTileEdge(f.geometry)) return [f];
-  const h = f.properties?.render_height;
-  const rest = m
-    .queryRenderedFeatures({ layers: [BUILDING_LAYER] })
-    .filter((x) => isPolygonal(x.geometry) && x.properties?.render_height === h && nearTileEdge(x.geometry));
-  const picked = [f];
+// A house split across tile edges comes back as several parts. Tiles carry a
+// small buffer, so the pieces of one house overlap each other near the edge,
+// while neighbouring houses only share a wall. Grow the picked part with
+// parts that overlap it (not merely touch), have the same height, and sit
+// near a tile edge.
+function tileEdgePieces(part: Part, all: Part[]): Geom[] {
+  if (!nearTileEdge(part.geometry)) return [part.geometry];
+  const rest = all.filter((x) => x !== part && x.h === part.h && nearTileEdge(x.geometry));
+  const picked: Geom[] = [part.geometry];
   let grew = true;
   while (grew && picked.length < 8) {
     grew = false;
     for (let i = rest.length - 1; i >= 0; i--) {
-      const g = rest[i].geometry as Geom;
-      if (picked.some((p) => touches(p.geometry as Geom, g, PART_TOLERANCE_M))) {
-        picked.push(rest.splice(i, 1)[0]);
+      if (picked.some((g) => overlaps(g, rest[i].geometry))) {
+        picked.push(rest.splice(i, 1)[0].geometry);
         grew = true;
       }
     }
@@ -1032,6 +1229,34 @@ function touches(a: Geom, b: Geom, tol: number): boolean {
   }
   // No edges close together: one may sit entirely inside the other.
   return inRing(ra[0][0], rb[0]) || inRing(rb[0][0], ra[0]);
+}
+
+// True if the shapes share interior area: a vertex of one lies inside the
+// other by more than 0.3 m, or two edges properly cross. Shared walls and
+// touching corners do not count.
+function overlaps(a: Geom, b: Geom): boolean {
+  const lat0 = ringsOf(a)[0]?.[0]?.[1] ?? 0;
+  const kx = M_PER_DEG_LNG_EQ * Math.cos((lat0 * Math.PI) / 180);
+  const toXY = (rings: number[][][]) => rings.map((r) => r.map(([x, y]) => [x * kx, y * M_PER_DEG_LAT] as XY));
+  const ra = toXY(ringsOf(a));
+  const rb = toXY(ringsOf(b));
+  if (!ra[0]?.length || !rb[0]?.length) return false;
+  const ba = bboxOf(ra);
+  const bb = bboxOf(rb);
+  if (ba[0] > bb[2] || bb[0] > ba[2] || ba[1] > bb[3] || bb[1] > ba[3]) return false;
+  const deepInside = (p: XY, ring: XY[]) => {
+    if (!inRing(p, ring)) return false;
+    for (let i = 0; i < ring.length - 1; i++) if (pointSegDist(p, ring[i], ring[i + 1]) < 0.3) return false;
+    return true;
+  };
+  if (ra[0].some((p) => deepInside(p, rb[0])) || rb[0].some((p) => deepInside(p, ra[0]))) return true;
+  for (let i = 0; i < ra[0].length - 1; i++) {
+    for (let j = 0; j < rb[0].length - 1; j++) {
+      const [p, q, r, t] = [ra[0][i], ra[0][i + 1], rb[0][j], rb[0][j + 1]];
+      if (cross(r, t, p) * cross(r, t, q) < 0 && cross(p, q, r) * cross(p, q, t) < 0) return true;
+    }
+  }
+  return false;
 }
 
 // Point in any outer ring of the shape (holes ignored; roofs rarely have them).
@@ -1101,11 +1326,4 @@ function inflate(g: Geom, k: number): Geom {
 
 function emptyFC(): FeatureCollection {
   return { type: "FeatureCollection", features: [] };
-}
-
-// Only layers that are actually shown can be hovered or clicked.
-function selectableBuildingLayers(map: MLMap): string[] {
-  return [BUILDING_LAYER, STATIC_BUILDING_LAYER].filter(
-    (layer) => Boolean(map.getLayer(layer)) && map.getLayoutProperty(layer, "visibility") !== "none",
-  );
 }
