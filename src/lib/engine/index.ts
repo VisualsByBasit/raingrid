@@ -12,10 +12,10 @@ export interface RoofTypeSpec {
 }
 
 // Roof-catchment ranges from the Indian Railways Institute's 2022 rainwater
-// harvesting manual. The default RCC value remains 0.8 so the worked example
-// in the project plan is reproducible.
+// harvesting manual. The default RCC value is 0.7, the midpoint of the manual's
+// 0.6 to 0.8 range for concrete roofs.
 export const ROOF_TYPES: Record<RoofType, RoofTypeSpec> = {
-  rcc: { label: "Flat concrete (RCC)", low: 0.6, mid: 0.8, high: 0.8 },
+  rcc: { label: "Flat concrete (RCC)", low: 0.6, mid: 0.7, high: 0.8 },
   metal: { label: "Metal sheet", low: 0.7, mid: 0.8, high: 0.9 },
 };
 

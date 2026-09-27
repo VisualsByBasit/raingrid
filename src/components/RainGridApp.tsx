@@ -265,7 +265,7 @@ export default function RainGridApp() {
         <div className="pointer-events-none absolute left-1/2 top-16 z-10 -translate-x-1/2 md:top-5">
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${mode}-${zoom < 14.5}-${addingNeighbour}`}
+              key={`${mode}-${zoom < 14.5}-${zoom < 16}-${addingNeighbour}`}
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -273,8 +273,8 @@ export default function RainGridApp() {
             >
               {mode === "draw"
                 ? zoom < 16
-                  ? "Zoom in close to your roof, then tap its corners"
-                  : `Tap the corners of your roof (${drawPoints.length} so far)`
+                  ? "Zoom in first"
+                  : "Tap your roof's corners"
                 : zoom < 14.5
                   ? "Search your sector or zoom in to see buildings"
                   : addingNeighbour
