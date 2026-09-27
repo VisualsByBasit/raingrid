@@ -17,6 +17,12 @@ export const GAUGES: Record<string, Gauge> = {
   saidpur: { id: "saidpur", name: "Saidpur", note: "Margalla foothills, above F-6", lat: 33.7425, lng: 73.0695 },
   zeropoint: { id: "zeropoint", name: "Zero Point", note: "between F-6, G-6 and G-7", lat: 33.6935, lng: 73.0515 },
   airport: { id: "airport", name: "Islamabad Airport", note: "south-west of the city", lat: 33.5495, lng: 72.8255 },
+  katcheri: { id: "katcheri", name: "Katcheri", note: "central Rawalpindi", lat: 33.6262, lng: 73.0710 },
+  pirwidhai: { id: "pirwidhai", name: "Pirwidhai", note: "north Rawalpindi", lat: 33.6388, lng: 73.0437 },
+  gawalmandi: { id: "gawalmandi", name: "Gawalmandi", note: "Rawalpindi", lat: 33.6129, lng: 73.0571 },
+  newkatarian: { id: "newkatarian", name: "New Katarian", note: "north-east Rawalpindi", lat: 33.6490, lng: 73.0750 },
+  chaklala: { id: "chaklala", name: "Chaklala", note: "south-east Rawalpindi", lat: 33.6058, lng: 73.0997 },
+  shamsabad: { id: "shamsabad", name: "Shamsabad", note: "Rawalpindi", lat: 33.6417, lng: 73.0845 },
 };
 
 export interface Storm {
@@ -79,6 +85,32 @@ export const STORMS: Storm[] = [
     readings: { bokra: 66, saidpur: 52 },
     window: "morning of the storm",
     source: { label: "Arab News, 25 Jun 2025", url: "https://arab.news/93b96" },
+  },
+  {
+    id: "2025-07-23-rawalpindi",
+    title: "Rawalpindi's widespread downpour",
+    date: "2025-07-23",
+    dateLabel: "23 July 2025",
+    blurb: "Rain varied sharply across six Rawalpindi gauges, led by 88 mm at Katcheri.",
+    readings: { katcheri: 88, pirwidhai: 65, gawalmandi: 52, newkatarian: 40, chaklala: 38, shamsabad: 32 },
+    window: "24 hours to 08:00 PKT",
+    source: {
+      label: "INCPak, citing PMD, 23 Jul 2025",
+      url: "https://www.incpak.com/national/islamabad/pakistan-monsoon-update-rainfall-data-recorded-in-the-last-24-hours/",
+    },
+  },
+  {
+    id: "2026-08-19-rawalpindi",
+    title: "Rawalpindi's flood-warning spell",
+    date: "2026-08-19",
+    dateLabel: "19 August 2026",
+    blurb: "PMD recorded 98 mm at Shamsabad but 55 mm at Chaklala, another sharp local contrast.",
+    readings: { shamsabad: 98, newkatarian: 90, pirwidhai: 86, chaklala: 55 },
+    window: "24 hours to 08:00 PKT",
+    source: {
+      label: "WE News, citing PMD, 19 Aug 2026",
+      url: "https://wenewsenglish.com/monsoon-rains-swell-pakistans-flood-risk/",
+    },
   },
 ];
 

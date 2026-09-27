@@ -4,30 +4,45 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 
-const endpoint = process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter";
+const endpoints = process.env.OVERPASS_URL
+  ? [process.env.OVERPASS_URL]
+  : ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 const sectors = [
   { id: "E-11", lat: 33.7006, lng: 72.9890 },
   { id: "F-10", lat: 33.6918, lng: 73.0070 },
   { id: "F-7", lat: 33.7168, lng: 73.0568 },
   { id: "G-11", lat: 33.6678, lng: 73.0005 },
   { id: "H-8", lat: 33.6687, lng: 73.0488 },
+  { id: "Satellite Town (Rawalpindi)", lat: 33.6351, lng: 73.0703 },
 ];
 const radius = 0.0035;
 
 const bbox = ({ lat, lng }) => `${lat - radius},${lng - radius},${lat + radius},${lng + radius}`;
 const query = `[out:json][timeout:120];(${sectors.map((sector) => `way["building"](${bbox(sector)});`).join("")});out geom;`;
 
-const response = await fetch(endpoint, {
-  method: "POST",
-  headers: {
-    accept: "application/json",
-    "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
-    "user-agent": "RAIN-GRID/1.0 (static demo data builder)",
-  },
-  body: new URLSearchParams({ data: query }),
-});
-if (!response.ok) throw new Error(`Overpass returned ${response.status} ${response.statusText}`);
-const payload = await response.json();
+async function loadOverpass() {
+  const errors = [];
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "user-agent": "RAIN-GRID/1.0 (static demo data builder)",
+        },
+        body: new URLSearchParams({ data: query }),
+      });
+      if (response.ok) return response.json();
+      errors.push(`${endpoint}: ${response.status} ${response.statusText}`);
+    } catch (error) {
+      errors.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(`Every Overpass endpoint failed:\n${errors.join("\n")}`);
+}
+
+const payload = await loadOverpass();
 
 const features = payload.elements.flatMap((element) => {
   if (element.type !== "way" || !Array.isArray(element.geometry) || element.geometry.length < 3) return [];
