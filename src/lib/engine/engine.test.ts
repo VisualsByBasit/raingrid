@@ -9,18 +9,19 @@ describe("rain engine", () => {
 
   it("matches the war-plan worked check (250 m2, 175 mm, full roof)", () => {
     const r = calculate({ areaM2: 250, rainMm: 175, usableShare: 1, firstFlushMm: 1.5 });
-    expect(r.net.mid).toBeCloseTo(30362.5, 0);
+    expect(r.net.mid).toBeCloseTo(30_362.5, 5);
+    expect(roundL(r.net.mid)).toBe(30_400);
     expect(r.split.tank).toBe(2000);
     expect(r.split.rechargePotential).toBe(0);
   });
 
-  it("sends overflow to the ground only when a recharge well exists", () => {
+  it("routes overflow toward recharge only when a recharge well exists", () => {
     const r = calculate({ areaM2: 250, rainMm: 175, usableShare: 1, hasRecharge: true });
     expect(r.split.tank).toBe(2000);
-    expect(r.split.rechargePotential).toBeCloseTo(30362.5 - 2000, 0);
+    expect(r.split.rechargePotential).toBeCloseTo(30_362.5 - 2000, 5);
   });
 
-  it("conserves water: tank + ground + drain + lost = gross", () => {
+  it("conserves water: tank + recharge potential + drain + lost = gross", () => {
     for (const hasRecharge of [true, false]) {
       const r = calculate({ areaM2: 180, rainMm: 60, usableShare: 0.85, tankLitres: 3000, hasRecharge });
       const sum = r.split.tank + r.split.rechargePotential + r.split.drain + r.split.lost;
@@ -32,6 +33,20 @@ describe("rain engine", () => {
     const r = calculate({ areaM2: 200, rainMm: 1 });
     expect(r.net.mid).toBe(0);
     expect(r.split.tank).toBe(0);
+  });
+
+  it.each([0, 2, 700])("handles %s mm rainfall without violating conservation", (rainMm) => {
+    const r = calculate({ areaM2: 250, rainMm });
+    expect(r.split.tank + r.split.rechargePotential + r.split.drain + r.split.lost).toBeCloseTo(r.gross, 6);
+    expect(Object.values(r.split).every((value) => Number.isFinite(value) && value >= 0)).toBe(true);
+  });
+
+  it.each([20, 5000])("handles a %s m2 roof with a sane ordered range", (areaM2) => {
+    const r = calculate({ areaM2, rainMm: 175 });
+    expect(r.gross).toBe(areaM2 * 175);
+    expect(r.net.low).toBeLessThanOrEqual(r.net.mid);
+    expect(r.net.mid).toBeLessThanOrEqual(r.net.high);
+    expect(r.split.tank + r.split.rechargePotential + r.split.drain + r.split.lost).toBeCloseTo(r.gross, 6);
   });
 
   it("zero and silly inputs never produce NaN or negatives", () => {
@@ -77,9 +92,9 @@ describe("rain engine", () => {
 });
 
 describe("tank fill", () => {
-  it("a 2,000 L tank on a 250 m2 roof fills after about 12.9 mm", () => {
-    // 2000 / (250 * 1 * 0.7) = 11.43 mm, plus 1.5 mm first flush
-    expect(mmToFillTank({ areaM2: 250, rainMm: 0, usableShare: 1 })).toBeCloseTo(2000 / 175 + 1.5, 5);
+  it("a 2,000 L tank on a 250 m2 roof fills after about 12.93 mm", () => {
+    // 2000 / (250 * 1 * 0.7) + 1.5 mm first flush
+    expect(mmToFillTank({ areaM2: 250, rainMm: 0, usableShare: 1 })).toBeCloseTo(12.928571, 5);
   });
   it("zero area never fills", () => {
     expect(mmToFillTank({ areaM2: 0, rainMm: 0 })).toBe(Number.POSITIVE_INFINITY);

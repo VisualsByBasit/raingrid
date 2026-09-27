@@ -32,7 +32,7 @@ No API keys needed. Everything runs on free, keyless services.
 | `src/data/sectors.ts` | Islamabad sector search (approximate centres) |
 | `src/config/city.ts` | Everything city-specific |
 | `src/components/` | Map, rain canvas, panels |
-| `scripts/extract-footprints.mjs` | Builds the static OSM fallback for E-11, F-10, F-7, G-11 and H-8 |
+| `scripts/extract-footprints.mjs` | Builds the static OSM fallback for E-11, F-10, F-7, G-11, H-8 and Satellite Town, Rawalpindi |
 | `scripts/copy-maplibre-worker.mjs` | Copies MapLibre's worker into `public/` (runs before dev and build) |
 
 ## The formula

@@ -1,5 +1,5 @@
 import type { Roof } from "./roof";
-import { CITY } from "../config/city";
+import { isInAuthorizedCity } from "../config/city";
 import { PRESETS, STORMS } from "../data/storms";
 
 export const SHARE_LIMITS = {
@@ -40,18 +40,20 @@ export function encodeShare(roofs: Roof[], storm: string): string {
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 }
 
-export function decodeShare(search: string): { roofs: Roof[]; storm: string | null } {
+export function decodeShare(search: string): { roofs: Roof[]; storm: string | null; outOfRange: boolean } {
   const p = new URLSearchParams(search);
   const storm = p.get("s");
   const roofs: Roof[] = [];
+  let outOfRange = false;
   for (const [i, chunk] of (p.get("r") ?? "").split(";").entries()) {
     const [lat, lng, area] = chunk.split(",").map(Number);
-    const inBounds =
-      lng >= CITY.bounds[0][0] && lng <= CITY.bounds[1][0] && lat >= CITY.bounds[0][1] && lat <= CITY.bounds[1][1];
+    const inBounds = Number.isFinite(lat) && Number.isFinite(lng) && isInAuthorizedCity(lat, lng);
     if ([lat, lng, area].every(Number.isFinite) && inBounds && area > 0 && area <= SHARE_LIMITS.areaM2) {
       roofs.push({ id: `shared-${i}`, label: `Roof ${i + 1}`, lat, lng, areaM2: area, source: "typed" });
+    } else if ([lat, lng].every(Number.isFinite) && !inBounds) {
+      outOfRange = true;
     }
     if (roofs.length >= SHARE_LIMITS.roofs) break;
   }
-  return { roofs, storm };
+  return { roofs, storm, outOfRange };
 }
