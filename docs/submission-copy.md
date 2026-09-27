@@ -19,8 +19,8 @@ All quantities come from a deterministic formula: roof area × usable share × (
 - Storm events: APP, ARY News, ProPakistani, Arab News, INCPak citing PMD, and WE News citing PMD. Exact links are stored with each event in `src/data/storms.ts`.
 - Monthly rainfall normals: Pakistan WMO 1991–2020 submission, Islamabad Airport station 41571, hosted by NOAA NCEI.
 - Roof runoff coefficients: Indian Railways Institute, *Rain Water Harvesting* manual (2022).
-- First flush: Lebanon Ministry of Energy and Water / UNDP, *National Guideline for Rainwater Harvesting Systems* (2016).
+- First flush: Lebanon Ministry of Agriculture / UNDP, *National Guidelines for Greenhouse Rainwater Harvesting Systems in the Agriculture Sector* (2016), which uses a typical 0.5 mm diversion height.
 - City context: CDA, PCRWR via Accountability Lab, and Dawn.
 - Map and footprints: OpenFreeMap, OpenMapTiles and © OpenStreetMap contributors.
 
-Do not add forecast, AI Roof Check, Supabase or Rain Card claims unless those features ship and are re-verified before submission.
+Forecast, the standalone Flood Relief meter, AI Roof Check, Supabase and Rain Card were formally cut. Do not add claims for them unless they ship and are re-verified before submission.

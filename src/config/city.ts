@@ -39,7 +39,7 @@ export const CITY = {
     },
     {
       stat: "~4 m",
-      text: "rise in the local water table from one recharge well at Kachnar Park, I-8, which also cut flood peaks in Nullah Leh.",
+      text: "rise in the local water table from one recharge well at Kachnar Park, I-8, which also cut flood peaks in Nalah Leh.",
       source: { label: "Dawn, Jun 2026", url: "https://www.dawn.com/news/amp/2010706" },
     },
   ],

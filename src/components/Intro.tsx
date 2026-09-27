@@ -47,7 +47,7 @@ export default function Intro({
           className="max-w-xl text-base text-muted md:text-lg"
         >
           Pick your roof, replay a real recorded storm, and follow every litre: into a tank, routed toward recharge, or into the
-          nullah. Then bring your street.
+          nalah. Then bring your street.
         </motion.p>
 
         <motion.div

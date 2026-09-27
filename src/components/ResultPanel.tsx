@@ -312,7 +312,7 @@ export default function ResultPanel(p: Props) {
       {p.phase === "done" && p.active && (
         <Step n="05" title="Bring your street">
           <p className="text-muted">
-            One roof is a tank. A street of roofs keeps water out of the nullah when it floods. Add your neighbours&apos;
+            One roof is a tank. A street of roofs keeps water out of the nalah when it floods. Add your neighbours&apos;
             roofs to see it.
           </p>
           <button
