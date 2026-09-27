@@ -30,7 +30,8 @@ export default function Intro({
       ref={scroller}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.4 } }}
+      // Fades out over the map's fly-in, so the city appears underneath.
+      exit={{ opacity: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } }}
       className="bg-landing absolute inset-0 z-30 overflow-y-auto overflow-x-hidden"
     >
       <Hero ready={ready} scroller={scroller} onStart={onStart} onSector={onSector} onSources={onSources} />

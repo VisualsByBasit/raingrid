@@ -114,7 +114,8 @@ function RainGrid() {
   // First visit to the map: run the guided tour once. Shared links skip it.
   useEffect(() => {
     if (intro || shared.roofs.length > 0 || tourSeen()) return;
-    const t = setTimeout(() => setTour(true), 700);
+    // After the landing's fly-in has settled.
+    const t = setTimeout(() => setTour(true), 2900);
     return () => clearTimeout(t);
   }, [intro, shared.roofs.length]);
   const closeTour = useCallback(() => {
@@ -181,9 +182,16 @@ function RainGrid() {
     [addingNeighbour],
   );
 
+  // From the landing, the map enters with a cinematic flight; from the map's
+  // own search it is an ordinary fly.
   const goSector = (s: Sector) => {
     setQuery(s.id);
-    setFly({ lng: s.lng, lat: s.lat, zoom: 16.2, key: Date.now() });
+    setFly({ lng: s.lng, lat: s.lat, zoom: 16.2, key: Date.now(), cinematic: intro });
+    setIntro(false);
+  };
+  // Leaving the landing without a sector: fly in over the city centre.
+  const enterCity = () => {
+    setFly({ lng: CITY.center[0], lat: CITY.center[1], zoom: 13.5, key: Date.now(), cinematic: true });
     setIntro(false);
   };
 
@@ -428,12 +436,12 @@ function RainGrid() {
         {intro && (
           <Intro
             ready={!loading}
-            onStart={() => setIntro(false)}
+            onStart={enterCity}
             onSector={goSector}
             onSources={() => setShowSources(true)}
             onFindRoof={() => {
               setFocusSearch(true);
-              setIntro(false);
+              enterCity();
             }}
           />
         )}

@@ -12,7 +12,15 @@ export interface FlyTarget {
   lat: number;
   zoom: number;
   key: number;
+  // Entry from the landing: start high and wide over the city, then fly in.
+  cinematic?: boolean;
 }
+
+// Cinematic entry: wide and top-down over Islamabad, then a 2.5 s eased
+// flight to the target with a slight bearing turn.
+const ENTRY_START = { zoom: 10.9, pitch: 0, bearing: 0 };
+const ENTRY_MS = 2500;
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 interface Props {
   roofs: Roof[];
@@ -592,6 +600,17 @@ export default function MapView(props: Props) {
     const m = map.current;
     if (!t || !m) return;
     flown.current = true;
+    if (t.cinematic) {
+      const pose = { center: [t.lng, t.lat] as [number, number], zoom: t.zoom, pitch: 55, bearing: 18 };
+      if (prefersReducedMotion()) {
+        m.jumpTo(pose);
+        return;
+      }
+      m.stop();
+      m.jumpTo({ center: CITY.center, ...ENTRY_START });
+      m.flyTo({ ...pose, duration: ENTRY_MS, curve: 1.3, easing: easeInOutCubic });
+      return;
+    }
     m.flyTo({
       center: [t.lng, t.lat],
       zoom: t.zoom,
