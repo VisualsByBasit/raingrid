@@ -345,11 +345,13 @@ function RainGrid() {
         {!intro && (
           <button
             onClick={() => setTour(true)}
-            aria-label="How it works: open the guided tour"
-            title="How it works"
-            className="glass pointer-events-auto grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold text-tank-deep"
+            aria-haspopup="dialog"
+            className="glass pointer-events-auto flex h-9 items-center gap-2 rounded-full pl-1.5 pr-3.5 text-sm font-semibold text-tank-deep transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tank"
           >
-            ?
+            <span aria-hidden className="grid h-6 w-6 place-items-center rounded-full bg-tank/10 text-xs">
+              ?
+            </span>
+            How it works
           </button>
         )}
         {!intro && (
