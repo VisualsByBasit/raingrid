@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CITY } from "@/config/city";
+import { CITY, OUT_OF_AUTHORIZED_RANGE, isInAuthorizedCity } from "@/config/city";
 import { ALL_SECTORS, searchSectors, type Sector } from "@/data/sectors";
 import { PRESETS, STORMS, nearestReading } from "@/data/storms";
 import { DEFAULTS, ROOF_TYPES, aggregate, calculate, type RoofType } from "@/lib/engine";
@@ -70,7 +70,7 @@ export default function RainGridApp() {
   const [query, setQuery] = useState("");
   const [typedArea, setTypedArea] = useState("");
   const [showSources, setShowSources] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(shared.outOfRange ? OUT_OF_AUTHORIZED_RANGE : null);
 
   useEffect(() => {
     if (!toast) return;
@@ -103,6 +103,10 @@ export default function RainGridApp() {
 
   const addRoof = useCallback(
     (roof: Roof) => {
+      if (!isInAuthorizedCity(roof.lat, roof.lng)) {
+        setToast(OUT_OF_AUTHORIZED_RANGE);
+        return;
+      }
       setRoofs((prev) => {
         // Clicking an already-selected roof selects it instead of duplicating.
         const dup = prev.find((r) => Math.abs(r.lat - roof.lat) < 1e-5 && Math.abs(r.lng - roof.lng) < 1e-5);

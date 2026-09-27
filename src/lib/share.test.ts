@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { isInAuthorizedCity } from "../config/city";
+import { ALL_SECTORS } from "../data/sectors";
 import { SHARE_LIMITS, choiceFromKey, decodeShare } from "./share";
 
 describe("shared links", () => {
@@ -12,6 +14,17 @@ describe("shared links", () => {
     const decoded = decodeShare("?r=33.70,73.05,250;0,0,250;33.70,73.05,100001");
     expect(decoded.roofs).toHaveLength(1);
     expect(decoded.roofs[0].areaM2).toBe(250);
+    expect(decoded.outOfRange).toBe(true);
+  });
+
+  it("rejects Rawalpindi roofs as outside the authorised Islamabad range", () => {
+    const decoded = decodeShare("?r=33.6262,73.0710,250");
+    expect(decoded.roofs).toHaveLength(0);
+    expect(decoded.outOfRange).toBe(true);
+  });
+
+  it("keeps every searchable Islamabad sector inside the authorised range", () => {
+    expect(ALL_SECTORS.every(({ lat, lng }) => isInAuthorizedCity(lat, lng))).toBe(true);
   });
 
   it("limits shared streets to 12 roofs", () => {

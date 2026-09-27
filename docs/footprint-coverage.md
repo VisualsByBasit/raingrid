@@ -9,7 +9,7 @@ Generated on 27 September 2026 with `npm run data:footprints`. The extractor que
 | F-7 | 361 | Strong demo coverage. |
 | G-11 | 21 | Sparse; retain draw and typed-area fallbacks. |
 | H-8 | 16 | Sparse; retain draw and typed-area fallbacks. |
-| Satellite Town, Rawalpindi | 1 | Inadequate OSM coverage; do not promise roof selection here. |
+| Satellite Town, Rawalpindi | 1 | Retained as reference data; the UI marks it outside the authorized Islamabad range. |
 | Nearby/unassigned | 54 | Buildings intersected a query box but their centre fell outside the named demo box. |
 
 Total: 831 footprints.
@@ -19,5 +19,5 @@ Total: 831 footprints.
 - F-7 and F-10 are the safest sectors for a footprint-click demo.
 - E-11 is usable with the manual fallbacks available.
 - G-11 and H-8 must be tested with draw-polygon and typed-area fallbacks because OSM coverage is sparse.
-- Satellite Town satisfies the Rawalpindi extraction check but not a reliable click-a-roof demo. Adding Google Open Buildings or another reviewed footprint source remains future work.
+- Rawalpindi reference data is retained, but Islamabad is the authorized project city. Rawalpindi roofs are rejected in the UI and in shared links with an explicit out-of-range message.
 - The checked-in GeoJSON is the production fallback. The application makes no live Overpass request; Overpass is used only when rebuilding this file.

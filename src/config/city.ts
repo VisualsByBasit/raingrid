@@ -8,6 +8,18 @@ export const CITY = {
     [72.75, 33.45],
     [73.35, 33.85],
   ] as [[number, number], [number, number]],
+  // Approximate demo boundary around the Islamabad sector grid. This is used
+  // to reject Rawalpindi and other out-of-city roofs; it is not a legal or
+  // cadastral boundary.
+  authorizedArea: [
+    [72.8, 33.58],
+    [72.98, 33.58],
+    [73.02, 33.62],
+    [73.04, 33.65],
+    [73.2, 33.65],
+    [73.25, 33.82],
+    [72.8, 33.82],
+  ] as [number, number][],
   facts: [
     {
       stat: "175 mm",
@@ -39,3 +51,17 @@ export const CITY = {
     },
   },
 };
+
+export const OUT_OF_AUTHORIZED_RANGE = "Out of authorised range — this RAIN//GRID build is for Islamabad.";
+
+export function isInAuthorizedCity(lat: number, lng: number): boolean {
+  let inside = false;
+  const polygon = CITY.authorizedArea;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const crosses = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
