@@ -172,6 +172,11 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
             <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
           </li>
           <li>Map engine: MapLibre GL JS. Geometry: Turf.js.</li>
+          <li>
+            Weather card:{" "}
+            <a className="underline" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC BY 4.0). Context
+            only; no RAIN//GRID number uses the forecast.
+          </li>
           <li>Sector locations are approximate (within about 1 km).</li>
         </ul>
 

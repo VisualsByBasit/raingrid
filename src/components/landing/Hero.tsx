@@ -11,6 +11,7 @@ import { detectSceneMode, detectSceneTier, type SceneMode } from "../three/scene
 import HeroBackdrop from "./HeroBackdrop";
 import LogoMark from "../LogoMark";
 import ThemeToggle from "../ThemeToggle";
+import WeatherCard from "../WeatherCard";
 
 // Landing hero: the living Islamabad plate (one WebGL scene with the
 // refracting droplet), the 21 July 2025 headline and sector search. Lines
@@ -205,6 +206,16 @@ export default function Hero({
             >
               Find my roof
             </button>
+          </motion.div>
+
+          {/* Islamabad weather (Open-Meteo): a card on phones, one line on desktop. Hidden on error. */}
+          <motion.div variants={rise} custom={lines.length + 3} initial="out" animate={state} className="mt-4 max-w-xl">
+            <div className="md:hidden">
+              <WeatherCard variant="card" />
+            </div>
+            <div className="hidden md:block">
+              <WeatherCard variant="compact" />
+            </div>
           </motion.div>
         </div>
       </div>

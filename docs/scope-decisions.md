@@ -4,9 +4,11 @@ Decision date: 27 September 2026.
 
 These decisions follow the war plan's cut rules and keep the submission aligned with what the repository actually ships.
 
-## Live Rain Forecast: cut
+## Live Rain Forecast: cut for the Imaginathon, added back as a weather card (25 October 2026)
 
-The Open-Meteo forecast strip is not part of the submitted scope. The core experience replays recorded, sourced storms and works without a forecast network request. Late-September forecast data would add a failure path without improving the judged core loop. No submission copy claims a live forecast.
+The Open-Meteo forecast strip was not part of the Imaginathon submission. The core experience replays recorded, sourced storms and works without a forecast network request.
+
+For the Zindigi demo a small weather card shows Islamabad's current weather and the highest hourly rain chance over the next 24 hours, credited "Data: Open-Meteo". It is context only: no RAIN//GRID calculation uses it, and it is hidden on any error or timeout, so it adds no failure path to the core loop. Open-Meteo's free API is for non-commercial use; a commercial launch needs their paid plan or another source (see `docs/zindigi-demo.md`).
 
 ## Standalone Flood Relief meter: cut
 
