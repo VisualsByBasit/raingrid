@@ -33,6 +33,7 @@ import { useCountUp } from "@/lib/useCountUp";
 import type { Setup } from "./RainGridApp";
 import Pledge from "./act/Pledge";
 import StreetProgressCard from "./act/StreetProgressCard";
+import SystemDiagram from "./act/SystemDiagram";
 import TankerCompare from "./act/TankerCompare";
 import { GuideToggle } from "./guide/GuideContext";
 import Hint from "./guide/Hint";
@@ -633,7 +634,8 @@ function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
   return (
     <div>
       <p className="mb-2 text-xs uppercase tracking-widest text-muted">Your rain plan</p>
-      <ol className="space-y-2">
+      <SystemDiagram areaM2={result.inputs.areaM2} firstFlushMm={result.inputs.firstFlushMm} tankLitres={result.inputs.tankLitres} />
+      <ol className="mt-3 space-y-2">
         <li className="flex gap-2">
           <span className="num text-tank">1</span>
           <span>
@@ -645,7 +647,7 @@ function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
           <span className="num text-tank">2</span>
           <span>
             {result.inputs.tankLitres > 0
-              ? "Filter before storage and keep the tank covered. Use this water for gardening, washing, flushing and cleaning, not drinking."
+              ? "Filter before storage and keep the tank covered. Use this water for gardening, washing, flushing and cleaning. Drink it only after the filter + UV branch."
               : "No storage tank is configured. Add a covered tank if you want to reuse water for gardening, washing, flushing or cleaning."}
           </span>
         </li>

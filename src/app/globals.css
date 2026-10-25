@@ -202,6 +202,19 @@ h3 {
   .scene-bob {
     animation: scene-bob 3s ease-in-out infinite;
   }
+  /* Water running down the system diagram's pipe. */
+  .flow-rail {
+    animation: flow-rail 0.9s linear infinite;
+  }
+}
+.flow-rail {
+  background-color: color-mix(in oklab, var(--color-tank) 18%, transparent);
+  background-image: repeating-linear-gradient(180deg, var(--color-rain) 0 6px, transparent 6px 12px);
+}
+@keyframes flow-rail {
+  to {
+    background-position: 0 12px;
+  }
 }
 @keyframes grain {
   0% {
