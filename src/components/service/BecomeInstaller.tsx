@@ -81,6 +81,7 @@ export default function BecomeInstaller({ onClose }: { onClose: () => void }) {
           <button type="submit" className="btn-primary w-full rounded-xl px-4 py-3 font-semibold">
             Continue
           </button>
+          <p className="text-center text-[11px] text-muted">Your details are only shared with RainGrid when you send this message.</p>
         </form>
       )}
     </Dialog>

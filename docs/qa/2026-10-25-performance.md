@@ -31,4 +31,12 @@ Production build (`next start`), Chrome 127 driven by puppeteer-core in a real o
 
 No long tasks (over 50 ms) were recorded in any run, before or after.
 
+Raw frame rates from the same runs (average of two). The ceiling is the workstation's 240 Hz display, not 60 Hz, so they show the direction, not what a phone gets:
+
+| Scene | fps before | fps after | Long tasks before / after |
+| --- | ---: | ---: | ---: |
+| Landing hero | 112.7 | 144.8 | 0 / 0 |
+| Map, idle | 238.8 | 240 (capped) | 0 / 0 |
+| Map, storm replay | 213.7 | 221.9 | 0 / 0 |
+
 The hero's GPU saving is larger than the CPU numbers show: on phones its canvas drops from 1.75x to 1x (about 3x fewer pixels to shade) and bloom's blur chain is gone. CPU throttling does not slow the GPU, so a check on a real mid-range phone remains a release-owner action.

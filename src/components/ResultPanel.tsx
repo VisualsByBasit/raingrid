@@ -500,9 +500,12 @@ export default function ResultPanel(p: Props) {
           </div>
           {p.street && <StreetTotals street={p.street} />}
           {p.roofs.length > 0 && (
-            <button onClick={p.share} className={`${btn} mt-2 w-full`}>
-              Copy street link
-            </button>
+            <>
+              <button onClick={p.share} className={`${btn} mt-2 w-full`}>
+                Copy street link
+              </button>
+              <p className="mt-1 text-center text-[11px] text-muted">This link includes your roof&apos;s location.</p>
+            </>
           )}
         </Step>
       )}

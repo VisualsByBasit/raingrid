@@ -33,7 +33,7 @@ There is no backend and no stored personal data. Requests are WhatsApp messages 
 | Maintenance price | `MAINTENANCE` in `src/config/packages.ts` | One plumber day plus one helper day at the Avenir rates. Filter cartridges and the lab water test have no source yet and are "quoted on the visit". |
 | Weather card | `src/lib/weather.ts` | Open-Meteo's free API is for non-commercial use. A commercial launch needs their paid plan or another source. |
 | Satellite imagery | `MapView.tsx` (`SAT_TILES`, `SAT_CREDIT`) | EOX Sentinel-2 cloudless **2016** layer, CC BY 4.0, attribution in the map and the sources drawer. Do not switch to the 2017+ layers: they are CC BY-NC-SA (non-commercial) without a commercial licence from EOX. Imagery is 10 m per pixel. |
-| Privacy note | Request form, share links | Share links and requests carry roof coordinates, and the T/D pins add precise points. Tell users that a shared link shows where their roof is. Add a short privacy notice before collecting requests at scale. |
+| Privacy note | Request form, share links | Share links and requests carry roof coordinates, and the T/D pins add precise points. The site-visit form says the location and pins are only shared when the user sends the message, the installer form says the same of their details, and the street link says it includes the roof's location. Add a fuller privacy notice before collecting requests at scale. |
 
 ## What is not real yet
 

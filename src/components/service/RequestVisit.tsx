@@ -112,11 +112,12 @@ export default function RequestVisit({ ctx, onClose }: { ctx: VisitContext; onCl
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={field} placeholder="Access, best landmark, anything we should know" />
           </label>
           <p className="text-[11px] text-muted">
-            We add your roof size, the quote and a link to your roof. Nothing leaves this page until you send it in WhatsApp.
+            We add your roof size, the quote and a link to your roof.
           </p>
           <button type="submit" className="btn-primary w-full rounded-xl px-4 py-3 font-semibold">
             Continue
           </button>
+          <p className="text-center text-[11px] text-muted">Your roof location and pins are only shared with RainGrid when you send this message.</p>
         </form>
       )}
     </Dialog>
