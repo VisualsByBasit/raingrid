@@ -247,6 +247,10 @@ h3 {
   .scene-bob {
     animation: scene-bob 3s ease-in-out infinite;
   }
+  /* Rain in the scroll story. */
+  .story-drop {
+    animation: story-drop 0.7s linear infinite;
+  }
   /* Water running down the system diagram's pipe. */
   .flow-rail {
     animation: flow-rail 0.9s linear infinite;
@@ -255,6 +259,19 @@ h3 {
 .flow-rail {
   background-color: color-mix(in oklab, var(--color-tank) 18%, transparent);
   background-image: repeating-linear-gradient(180deg, var(--color-rain) 0 6px, transparent 6px 12px);
+}
+@keyframes story-drop {
+  from {
+    transform: translate(0, -24px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(-10px, 46px);
+    opacity: 0.2;
+  }
 }
 @keyframes flow-rail {
   to {

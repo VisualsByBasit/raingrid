@@ -21,38 +21,24 @@ export const HERO = {
   lead: "Pick your roof, replay a real recorded storm, and follow every litre: into a tank, down a recharge well, or into the nalah. Then bring your street.",
 };
 
-export const BEATS = 7;
+// The scroll story: three beats over about three screens.
+export const BEATS = 3;
+export type StoryMode = "today" | "raingrid";
 
-export function caption(beat: number, caught: boolean): { title: string; body: string } {
-  switch (beat) {
-    case 0:
-      return { title: "Before the rain", body: "Most days, the sun bakes the Margalla Hills and the city at their feet." };
-    case 1:
-      return { title: "The monsoon arrives", body: "Then the clouds roll in over the hills." };
-    case 2:
-      return {
-        title: record.dateLabel,
-        body: `${h8Mm} mm fell at the ${GAUGES.pmd.name} ${GAUGES.pmd.note}. Follow one drop.`,
-      };
-    case 3:
-      return { title: "It lands on a roof", body: "An ordinary Islamabad rooftop. Yours probably looks a lot like this one." };
-    case 4:
-      return {
-        title: "Today",
-        body: groundwater
-          ? `It runs off the roof, down the street and into the nalah. Underground, the water table in some sectors is dropping ${groundwater.stat} a year.`
-          : "It runs off the roof, down the street and into the nalah, while the water table underground keeps dropping.",
-      };
-    case 5:
-      return caught
-        ? {
-            title: "Caught",
-            body: well
-              ? `A pipe fills the tank, the overflow goes down a recharge well, and the nalah stays calm. One well at Kachnar Park, I-8 raised the local water table by ${plain(well.stat)}.`
-              : "A pipe fills the tank, the overflow goes down a recharge well, and the nalah stays calm.",
-          }
-        : { title: "Now imagine...", body: "The same rain, on the same roof, but caught. Flip the switch." };
-    default:
-      return { title: "Your turn", body: "Every roof in the city can do this. Find yours." };
-  }
-}
+export const STORY_BEATS: { title: string; body: string }[] = [
+  { title: "Before the rain", body: "Most days, the sun bakes the Margalla Hills and the city at their feet." },
+  {
+    title: record.dateLabel,
+    body: `The monsoon rolls in over the hills. ${h8Mm} mm fell at the ${GAUGES.pmd.name} ${GAUGES.pmd.note}, on every roof in the city.`,
+  },
+  { title: "Where does it go?", body: "" },
+];
+
+export const OUTCOME: Record<StoryMode, string> = {
+  today: groundwater
+    ? `Today it runs off the roof, down the street and into the nalah. Underground, the water table in some sectors is dropping ${groundwater.stat} a year.`
+    : "Today it runs off the roof, down the street and into the nalah, while the water table underground keeps dropping.",
+  raingrid: well
+    ? `With RainGrid, gutters fill a tank, the overflow goes down a recharge well, and the nalah stays calmer. One well at Kachnar Park, I-8 raised the local water table by ${plain(well.stat)}.`
+    : "With RainGrid, gutters fill a tank, the overflow goes down a recharge well, and the nalah stays calmer.",
+};
