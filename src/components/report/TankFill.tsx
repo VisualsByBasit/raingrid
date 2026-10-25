@@ -78,13 +78,13 @@ export default function TankFill({
               strokeWidth={2}
               strokeDasharray={t.isNew ? "6 4" : undefined}
             />
-            <text x={x + TANK_W / 2} y={TOP - 10} textAnchor="middle" className="num" fontSize={12} fill="var(--color-fg)">
+            <text x={x + TANK_W / 2} y={TOP - 10} textAnchor="middle" fontSize={12} fill="var(--color-fg)">
               {formatL(t.filled)}
             </text>
             <text x={x + TANK_W / 2} y={floorY + 16} textAnchor="middle" fontSize={11} fill="var(--color-fg)">
               {t.isNew ? "New tank" : "Your tank"}
             </text>
-            <text x={x + TANK_W / 2} y={floorY + 30} textAnchor="middle" className="num" fontSize={10} fill="var(--color-muted)">
+            <text x={x + TANK_W / 2} y={floorY + 30} textAnchor="middle" fontSize={10} fill="var(--color-muted)">
               {formatL(t.capacity)} {k >= 0.995 ? "· full" : `· ${Math.round(k * 100)}%`}
             </text>
           </g>
@@ -136,7 +136,6 @@ export default function TankFill({
             x={fallX}
             y={floorY + 30}
             textAnchor="middle"
-            className="num"
             fontSize={10}
             fill={overflowTo === "well" ? "var(--color-ground-deep)" : "var(--color-drain-deep)"}
           >

@@ -20,18 +20,22 @@ export default function InstallTab({
   return (
     <div className="space-y-4 text-sm">
       <HowItWorks variant="compact" />
+      <Heading>Your package and price</Heading>
       <QuoteCard result={result} onChoice={onQuoteChoice} />
+      <Heading>Plan the visit</Heading>
       <button onClick={onRoofCheck} className={`${btn} w-full text-tank-deep`}>
         Mark your tank and downpipe spots (roof check)
       </button>
       <button onClick={onRequestVisit} className="btn-primary hidden w-full rounded-xl px-4 py-3 font-semibold md:block">
         Request a free site visit
       </button>
-      <InstallersCard onBecomeInstaller={onBecomeInstaller} />
+      <Heading>Looking after it</Heading>
       <div className="space-y-2">
         <MaintenanceCard />
         <WaterSafety />
       </div>
+      <Heading>Installers</Heading>
+      <InstallersCard onBecomeInstaller={onBecomeInstaller} />
       {/* Phones: last in the tab, so it can stay stuck to the bottom throughout. */}
       <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-ink/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
         <button onClick={onRequestVisit} className="btn-primary w-full rounded-xl px-4 py-3 font-semibold">
@@ -40,4 +44,8 @@ export default function InstallTab({
       </div>
     </div>
   );
+}
+
+function Heading({ children }: { children: React.ReactNode }) {
+  return <h3 className="pt-2 text-xs font-semibold uppercase tracking-widest text-muted">{children}</h3>;
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MONTHLY_NORMALS } from "../data/storms";
 import { calculate } from "./engine";
 import { waterFlows } from "./flows";
-import { seasonMonths, seasonSummary } from "./season";
+import { monsoonCatch, seasonMonths, seasonSummary } from "./season";
 
 describe("water flows", () => {
   it("accounts for every litre that lands on the roof", () => {
@@ -57,5 +57,33 @@ describe("season", () => {
     expect(s.monsoonShare).toBeGreaterThan(0.5);
     expect(s.monsoonRefills).toBeCloseTo(s.monsoonLitres / 2000, 6);
     expect(seasonSummary(months, 0).monsoonRefills).toBe(0);
+  });
+});
+
+describe("monsoon catch", () => {
+  const months = seasonMonths({ areaM2: 250 });
+
+  it("is limited by use for a 250 m² roof with 4,000 L and 500 L a day", () => {
+    const c = monsoonCatch(months, 4000, 500);
+    expect(c.days).toBe(92);
+    expect(c.rainDays).toBeCloseTo(30.6, 5);
+    // 4,000 + 500 × 92 = 50,000 L, far below the 113,000 L harvest.
+    expect(c.caught).toBe(50_000);
+    expect(c.limitedBy).toBe("use");
+  });
+
+  it("never exceeds the harvest, or one tankful per rain day", () => {
+    // 2,000 L × 30.6 rain days = 61,200 L, below the harvest.
+    const big = monsoonCatch(months, 2000, 5000);
+    expect(big.caught).toBeCloseTo(2000 * 30.6, 6);
+    expect(big.limitedBy).toBe("rainDays");
+    const huge = monsoonCatch(months, 50_000, 5000);
+    expect(huge.caught).toBeCloseTo(huge.harvest, 6);
+    expect(huge.limitedBy).toBe("harvest");
+  });
+
+  it("catches nothing without storage, and handles bad input", () => {
+    expect(monsoonCatch(months, 0, 500).caught).toBe(0);
+    expect(monsoonCatch(months, 4000, Number.NaN).caught).toBe(4000);
   });
 });

@@ -34,6 +34,14 @@ describe("Islamabad 1991–2020 rainfall normals", () => {
     expect(MONSOON_NORMAL_MM).toBeCloseTo(763, 5);
     expect(NORMALS_SOURCE.url).toContain("Islamabad_41571.csv");
   });
+
+  it("carries the WMO rain-day counts (days with 1 mm or more)", () => {
+    const total = MONTHLY_NORMALS.reduce((s, m) => s + m.rainDays, 0);
+    // The data sheet's annual figure is 73.1.
+    expect(total).toBeCloseTo(73.1, 5);
+    expect(MONTHLY_NORMALS.slice(6, 9).map((m) => m.rainDays)).toEqual([12.3, 11.9, 6.4]);
+    expect(MONTHLY_NORMALS.reduce((s, m) => s + m.days, 0)).toBe(365);
+  });
 });
 
 describe("sourced storm catalogue", () => {

@@ -36,7 +36,7 @@ export function waterFlows(r: RainResult): { nodes: FlowNode[]; links: FlowLink[
     { from: "rain", to: "unpiped", litres: unpiped, label: "Rain on the part of the roof that isn't piped" },
     { from: "rain", to: "lost", litres: r.split.lost, label: "Soaked into the roof, evaporated or splashed" },
     { from: "rain", to: "firstFlush", litres: r.firstFlush, label: "The dirty first flush, diverted" },
-    { from: "rain", to: "collect", litres: r.net.mid, label: "Clean water you can collect" },
+    { from: "rain", to: "collect", litres: r.net.mid, label: "Water you can collect (after first flush and losses)" },
     { from: "collect", to: "tank", litres: r.split.tank, label: "Stored in your tank" },
     { from: "collect", to: "recharge", litres: r.split.rechargePotential, label: "Routed toward recharge (potential)" },
     { from: "collect", to: "drain", litres: overflow, label: "Overflow, to the drain" },

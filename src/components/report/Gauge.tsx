@@ -52,7 +52,7 @@ export default function Gauge({ value, color, label, dashed = false }: { value: 
         />
         <circle r={4} fill="var(--color-fg)" />
       </g>
-      <text x={CX} y={CY + 17} textAnchor="middle" className="num" fontSize={13} fontWeight={600} fill="var(--color-fg)">
+      <text x={CX} y={CY + 17} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--color-fg)">
         {pct}%
       </text>
     </svg>

@@ -141,6 +141,10 @@ export interface Preset {
 export interface MonthlyNormal {
   month: string;
   mm: number;
+  // Days with 1 mm of rain or more (WMO parameter 2, same data sheet).
+  rainDays: number;
+  // Calendar days in the month (February: 28).
+  days: number;
 }
 
 export const NORMALS_SOURCE = {
@@ -149,18 +153,18 @@ export const NORMALS_SOURCE = {
 };
 
 export const MONTHLY_NORMALS: MonthlyNormal[] = [
-  { month: "Jan", mm: 55.2 },
-  { month: "Feb", mm: 93.4 },
-  { month: "Mar", mm: 95.2 },
-  { month: "Apr", mm: 58.1 },
-  { month: "May", mm: 39.9 },
-  { month: "Jun", mm: 78.4 },
-  { month: "Jul", mm: 310.6 },
-  { month: "Aug", mm: 317.0 },
-  { month: "Sep", mm: 135.4 },
-  { month: "Oct", mm: 34.4 },
-  { month: "Nov", mm: 17.7 },
-  { month: "Dec", mm: 25.9 },
+  { month: "Jan", mm: 55.2, rainDays: 4.7, days: 31 },
+  { month: "Feb", mm: 93.4, rainDays: 6.3, days: 28 },
+  { month: "Mar", mm: 95.2, rainDays: 7.3, days: 31 },
+  { month: "Apr", mm: 58.1, rainDays: 6.1, days: 30 },
+  { month: "May", mm: 39.9, rainDays: 5.2, days: 31 },
+  { month: "Jun", mm: 78.4, rainDays: 6.0, days: 30 },
+  { month: "Jul", mm: 310.6, rainDays: 12.3, days: 31 },
+  { month: "Aug", mm: 317.0, rainDays: 11.9, days: 31 },
+  { month: "Sep", mm: 135.4, rainDays: 6.4, days: 30 },
+  { month: "Oct", mm: 34.4, rainDays: 2.9, days: 31 },
+  { month: "Nov", mm: 17.7, rainDays: 2.0, days: 30 },
+  { month: "Dec", mm: 25.9, rainDays: 2.0, days: 31 },
 ];
 
 const sumNormal = (months: MonthlyNormal[]) =>

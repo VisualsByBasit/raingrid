@@ -40,3 +40,17 @@ Raw frame rates from the same runs (average of two). The ceiling is the workstat
 | Map, storm replay | 213.7 | 221.9 | 0 / 0 |
 
 The hero's GPU saving is larger than the CPU numbers show: on phones its canvas drops from 1.75x to 1x (about 3x fewer pixels to shade) and bloom's blur chain is gone. CPU throttling does not slow the GPU, so a check on a real mid-range phone remains a release-owner action.
+
+## Re-run after the Rain Report redesign (R5, 26 October 2026)
+
+Same method (production build, 390 × 844 phone emulation, 4x CPU throttle, two runs averaged). Two scenes are new: the Rain Report open over the map, and the map again after closing it. The Report is lazy-loaded, stops the map's rain canvas while open, and animates only transform and opacity.
+
+| Scene | ms per frame (J1 after) | ms per frame now | fps now | Long tasks |
+| --- | ---: | ---: | ---: | ---: |
+| Landing hero | 6.8 | 7.2 | 137.2 | 0 |
+| Map, idle | 0.35 | 0.20 | 239.4 | 0 |
+| Map, storm replay | 2.3 | 1.9 | 227.1 | 0 |
+| Rain Report open over the map | (new) | 0.18 | 240 | 0 |
+| Map after closing the Report | (new) | 0.19 | 239.8 | 0 |
+
+The map scenes are as fast as, or faster than, after J1. The hero is unchanged code; 7.2 ms sits inside J1's own run-to-run spread (6.4 to 7.2 ms). With the Report open the main thread is 4 to 5% busy, so the Report does not slow the map, and the map is back to its idle cost after it closes. Frame rates are capped by the workstation's 240 Hz display, as before.

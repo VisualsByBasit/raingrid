@@ -11,6 +11,7 @@ import { priceLabel } from "@/lib/price";
 import { SOURCES } from "@/lib/sources";
 
 const WETTEST_MONTH_MM = Math.max(...MONTHLY_NORMALS.map((m) => m.mm));
+const MONSOON_RAIN_DAYS = Math.round(MONTHLY_NORMALS.slice(6, 9).reduce((s, m) => s + m.rainDays, 0) * 10) / 10;
 
 export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
   return (
@@ -72,7 +73,7 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           <li>{SOURCES.recommendation.label}. More tanks are an optional add in the quote.</li>
           <li>“Routed toward recharge” is potential routing, never measured infiltration. Recharge suitability depends on soil and depth to groundwater, so it is checked on the site visit.</li>
           <li>Results are shown as ranges and rounded to the nearest 100 L.</li>
-          <li>Harvested rainwater is for gardening, washing, flushing, cleaning and recharge. Not for drinking.</li>
+          <li>Harvested rainwater is for gardening, washing, flushing, cleaning and recharge. Not for drinking unless it goes through the 7-stage filter with UV (Plus).</li>
         </ul>
 
         <h3 className="mt-6 font-semibold">Year view · 1991–2020 rainfall normal</h3>
@@ -90,6 +91,12 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           <a className="underline underline-offset-2 hover:text-tank" href={NORMALS_SOURCE.url} target="_blank" rel="noreferrer">
             {NORMALS_SOURCE.label} ↗
           </a>
+        </p>
+        <p className="mt-2 text-xs text-muted">
+          The same data sheet gives the days with 1 mm of rain or more: {MONSOON_RAIN_DAYS} from July to September. The Season
+          and Money sections use them for a typical monsoon&apos;s catch: the smallest of what the roof collects, one full tank on
+          each rain day, and the first fill plus the water used each day. {SOURCES.dailyUse.label}. Each month counts one first
+          flush, a simplification.
         </p>
 
         <h3 className="mt-6 font-semibold">Storms</h3>

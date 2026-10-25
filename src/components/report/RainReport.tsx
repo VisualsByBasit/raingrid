@@ -1,13 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion, useDragControls, useReducedMotion, type PanInfo } from "framer-motion";
-import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { roofDisplayLabel } from "@/lib/explain";
 import { REPORT_TABS, REPORT_TAB_LABEL } from "@/lib/report";
+import { DEFAULT_DAILY_USE } from "@/lib/season";
 import { nearestSector } from "@/lib/whatsapp";
-import TankerCompare from "../act/TankerCompare";
 import { GaugeBadge } from "../RainBits";
 import InstallTab from "./InstallTab";
+import MoneyTab from "./MoneyTab";
 import OverviewTab from "./OverviewTab";
 import SeasonTab from "./SeasonTab";
 import StreetTab from "./StreetTab";
@@ -25,6 +26,8 @@ export default function RainReport(p: ReportProps) {
   const drag = useDragControls();
   const scroller = useRef<HTMLDivElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
+  // Water used from the tank each day: shared by Season and Money.
+  const [dailyUse, setDailyUse] = useState(DEFAULT_DAILY_USE);
   const { onClose } = p;
 
   // Focus moves in on open and back to the opener on close.
@@ -166,12 +169,13 @@ export default function RainReport(p: ReportProps) {
                 <OverviewTab result={p.result} rain={p.rain} roof={p.roof} setup={p.setup} setSetup={p.setSetup} setTab={p.setTab} />
               )}
               {p.tab === "water" && <WaterTab result={p.result} rain={p.rain} roof={p.roof} />}
-              {p.tab === "season" && <SeasonTab result={p.result} roof={p.roof} />}
-              {p.tab === "money" && <TankerCompare stored={p.result.split.tank} harvestable={p.result.net.mid} />}
+              {p.tab === "season" && <SeasonTab result={p.result} roof={p.roof} dailyUse={dailyUse} setDailyUse={setDailyUse} />}
+              {p.tab === "money" && <MoneyTab result={p.result} dailyUse={dailyUse} setDailyUse={setDailyUse} />}
               {p.tab === "street" && (
                 <StreetTab
                   roofs={p.roofs}
                   street={p.street}
+                  result={p.result}
                   onAddNeighbours={p.onAddNeighbours}
                   invite={p.invite}
                   share={p.share}

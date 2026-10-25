@@ -118,7 +118,7 @@ export default function WaterSankey({ nodes, links, gross }: { nodes: FlowNode[]
       <text x={0} y={14} fontSize={11} fontWeight={600} fill="var(--color-fg)">
         Rain on roof
       </text>
-      <text x={0} y={27} className="num" fontSize={10} fill="var(--color-muted)">
+      <text x={0} y={27} fontSize={10} fill="var(--color-muted)">
         {formatL(gross)}
       </text>
       {nodes
@@ -131,7 +131,7 @@ export default function WaterSankey({ nodes, links, gross }: { nodes: FlowNode[]
               <text x={x} y={ly} fontSize={10.5} fontWeight={600} fill="var(--color-fg)" style={halo}>
                 {n.label}
               </text>
-              <text x={x} y={ly + 12} className="num" fontSize={10} fill="var(--color-muted)" style={halo}>
+              <text x={x} y={ly + 12} fontSize={10} fill="var(--color-muted)" style={halo}>
                 {formatL(n.litres)}
               </text>
             </g>

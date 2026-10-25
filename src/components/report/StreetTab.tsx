@@ -1,31 +1,42 @@
 "use client";
 
-import { formatL } from "@/lib/engine";
+import { formatL, type RainResult } from "@/lib/engine";
 import Pledge from "../act/Pledge";
 import StreetProgressCard from "../act/StreetProgressCard";
 import type { ReportProps, Street } from "./types";
 
 const btn = "rounded-lg border border-line px-3 py-2 text-sm transition hover:border-tank/60 hover:text-fg";
 
-// One roof is a tank; a street of roofs keeps water out of the nalah.
+// One roof is a tank; a street of roofs keeps water out of the nalah. Leads
+// with the street link's combined total, then inviting and adding roofs.
 export default function StreetTab({
   roofs,
   street,
+  result,
   onAddNeighbours,
   invite,
   share,
   onPledgeVisit,
-}: Pick<ReportProps, "roofs" | "street" | "onAddNeighbours" | "invite" | "share"> & { onPledgeVisit: () => void }) {
+}: Pick<ReportProps, "roofs" | "street" | "onAddNeighbours" | "invite" | "share"> & { result: RainResult; onPledgeVisit: () => void }) {
+  const n = street?.count ?? 1;
+  const landed = street ? street.gross : result.gross;
+  const kept = street ? street.tank + street.rechargePotential : result.split.tank + result.split.rechargePotential;
   return (
     <div className="space-y-4 text-sm">
-      <p className="text-muted">
-        One roof is a tank. A street of roofs keeps water out of the nalah when it floods. Add your neighbours&apos; roofs to
-        see it.
-      </p>
+      <section className="rounded-2xl border border-tank/40 bg-tank/5 p-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-tank-deep">This street link</p>
+        <p className="num mt-1 text-4xl font-semibold tracking-tight text-fg">{formatL(landed)}</p>
+        <p className="text-fg">
+          of rain landed on the {n === 1 ? "1 roof" : `${n} roofs`} on this link in this storm.{" "}
+          <span className="num text-tank-deep">{formatL(kept)}</span> is kept in tanks
+          {(street ? street.rechargePotential : result.split.rechargePotential) > 0 ? " or sent toward wells" : ""}; the rest is lost on
+          the roofs or heads for the drain and the nalah.
+        </p>
+      </section>
+      <StreetProgressCard roofs={roofs} onInvite={invite} />
       <button onClick={onAddNeighbours} className={`${btn} w-full`}>
         + Add neighbours&apos; roofs on the map
       </button>
-      <StreetProgressCard roofs={roofs} onInvite={invite} />
       {street && <StreetTotals street={street} />}
       <div>
         <button onClick={share} className={`${btn} w-full`}>
