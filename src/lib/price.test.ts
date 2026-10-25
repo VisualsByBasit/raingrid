@@ -36,9 +36,14 @@ describe("part prices", () => {
 });
 
 describe("maintenance plan", () => {
-  it("prices a visit as one plumber day plus one helper day", () => {
-    expect(MAINTENANCE.visitLowRs).toBe(2_800 + 1_538);
-    expect(MAINTENANCE.visitHighRs).toBe(3_800 + 1_538);
+  it("prices a visit as one plumber day plus one helper day, plus the service margin", () => {
+    expect(MAINTENANCE.labourLowRs).toBe(2_800 + 1_538);
+    expect(MAINTENANCE.labourHighRs).toBe(3_800 + 1_538);
+    expect(MAINTENANCE.serviceLowRs).toBeCloseTo(4_338 * 0.15, 6);
+    expect(MAINTENANCE.serviceHighRs).toBeCloseTo(5_338 * 0.15, 6);
+    // 4,988.7 -> 5,000 and 6,138.7 -> 6,100
+    expect(MAINTENANCE.visitLowRs).toBe(5_000);
+    expect(MAINTENANCE.visitHighRs).toBe(6_100);
   });
 
   it("covers tank clean, filter change and water test", () => {

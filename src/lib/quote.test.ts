@@ -1,14 +1,37 @@
 import { describe, expect, it } from "vitest";
+import { SERVICE_MARGIN } from "../config/packages";
 import { buildQuote, instalments, roundHundred } from "./quote";
 
 describe("quote", () => {
-  it("prices Basic from the gutter kit, pipe and one day of labour", () => {
+  it("prices Basic from the gutter kit, pipe and one day of labour, plus the service margin", () => {
     const q = buildQuote("basic", null);
-    expect(q.lines.map((l) => l.part)).toEqual(["gutterKit", "pipe", "plumber", "helper"]);
-    // 10,000 + 20 ft × 482.4 + 2,800 + 1,538 = 23,986 -> 24,000
-    expect(q.lowRs).toBe(24_000);
-    // 30,000 + 40 ft × 482.4 + 3,800 + 1,538 = 54,634 -> 54,600
-    expect(q.highRs).toBe(54_600);
+    expect(q.lines.map((l) => l.part)).toEqual(["gutterKit", "pipe", "plumber", "helper", "service"]);
+    // 10,000 + 20 ft × 482.4 + 2,800 + 1,538 = 23,986; × 1.15 = 27,583.9 -> 27,600
+    expect(q.lowRs).toBe(27_600);
+    // 30,000 + 40 ft × 482.4 + 3,800 + 1,538 = 54,634; × 1.15 = 62,829.1 -> 62,800
+    expect(q.highRs).toBe(62_800);
+  });
+
+  it("adds the RainGrid service as its own line, 15% of parts and labour", () => {
+    expect(SERVICE_MARGIN).toBe(0.15);
+    const q = buildQuote("standard", { size: 2000, count: 1 });
+    const service = q.lines.find((l) => l.part === "service")!;
+    expect(service.label).toBe("RainGrid service: vetting, quality check, warranty (15%)");
+    expect(service.estimate).toBe(false);
+    const parts = q.lines.filter((l) => l.part !== "service");
+    expect(service.lowRs).toBeCloseTo(parts.reduce((s, l) => s + l.lowRs, 0) * 0.15, 6);
+    expect(service.highRs).toBeCloseTo(parts.reduce((s, l) => s + l.highRs, 0) * 0.15, 6);
+  });
+
+  it("prices the one-tank packages for the pitch deck", () => {
+    const tank = { size: 2000 as const, count: 1 };
+    // 49,986 to 106,472 before the margin.
+    expect(buildQuote("standard", tank)).toMatchObject({ lowRs: 57_500, highRs: 122_400 });
+    // 74,236 to 126,384 before the margin.
+    expect(buildQuote("plus", tank)).toMatchObject({ lowRs: 85_400, highRs: 145_300 });
+    expect(instalments(buildQuote("basic", null), 12)).toEqual({ months: 12, lowRs: 2_300, highRs: 5_200 });
+    expect(instalments(buildQuote("standard", tank), 12)).toEqual({ months: 12, lowRs: 4_800, highRs: 10_200 });
+    expect(instalments(buildQuote("plus", tank), 12)).toEqual({ months: 12, lowRs: 7_100, highRs: 12_100 });
   });
 
   it("prices Standard with the recommended tank size and count", () => {
@@ -18,7 +41,8 @@ describe("quote", () => {
     expect(tankLine.label).toBe("2 × 2,000 L tank");
     expect(tankLine.lowRs).toBe(52_000);
     expect(tankLine.highRs).toBe(93_000);
-    expect(two.lowRs - one.lowRs).toBe(26_000);
+    // One more 26,000 tank, plus 15%: 29,900.
+    expect(two.lowRs - one.lowRs).toBe(29_900);
     const small = buildQuote("standard", { size: 1000, count: 1 });
     expect(small.lines.some((l) => l.part === "tank1000")).toBe(true);
   });

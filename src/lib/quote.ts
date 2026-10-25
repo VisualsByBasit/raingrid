@@ -1,11 +1,13 @@
 // Turns a package (and a tank size) into a rupee range, line by line, from
 // the prices in src/config/packages.ts. Pure, unit tested. Pipe length and
-// labour days are estimates, so any line that uses them is flagged.
+// labour days are estimates, so any line that uses them is flagged. The
+// RainGrid service margin is added as its own line on top of parts and
+// labour.
 
-import { PACKAGES, PARTS, type PackageId, type PartId } from "../config/packages";
+import { PACKAGES, PARTS, SERVICE_LINE, SERVICE_MARGIN, type PackageId, type PartId } from "../config/packages";
 
 export interface QuoteLine {
-  part: PartId;
+  part: PartId | "service";
   label: string;
   lowRs: number;
   highRs: number;
@@ -64,6 +66,9 @@ export function buildQuote(
   }
   // Plus with no tank given still prices its default tank (handled above);
   // Basic and Standard never add a tank the package doesn't include.
+  const partsLowRs = lines.reduce((s, l) => s + l.lowRs, 0);
+  const partsHighRs = lines.reduce((s, l) => s + l.highRs, 0);
+  lines.push({ part: "service", label: SERVICE_LINE, lowRs: partsLowRs * SERVICE_MARGIN, highRs: partsHighRs * SERVICE_MARGIN, estimate: false });
   const lowRs = roundHundred(lines.reduce((s, l) => s + l.lowRs, 0));
   const highRs = roundHundred(lines.reduce((s, l) => s + l.highRs, 0));
   return { package: pkgId, lines, lowRs, highRs, onSiteVisit: opts.recharge ? [PARTS.rechargeWell.name] : [] };

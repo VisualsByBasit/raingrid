@@ -1,6 +1,6 @@
 "use client";
 
-import { ESTIMATE_LABEL, MAINTENANCE } from "@/config/packages";
+import { ESTIMATE_LABEL, MAINTENANCE, SERVICE_LINE } from "@/config/packages";
 
 const rs = (v: number) => v.toLocaleString("en-US");
 
@@ -10,7 +10,7 @@ export function MaintenanceCard() {
     <details className="group rounded-xl border border-line p-3 text-[13px]">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-fg">
         Yearly maintenance plan
-        <span className="num text-xs font-normal text-tank-deep">
+        <span className="num shrink-0 whitespace-nowrap text-xs font-normal text-tank-deep">
           Rs {rs(MAINTENANCE.visitLowRs)} to {rs(MAINTENANCE.visitHighRs)} a visit
         </span>
       </summary>
@@ -21,8 +21,22 @@ export function MaintenanceCard() {
           </li>
         ))}
       </ul>
+      <ul className="mt-2 space-y-0.5 border-t border-line pt-2 text-xs">
+        <li className="flex justify-between gap-3">
+          <span className="text-muted">Plumber and helper, one day ({ESTIMATE_LABEL})</span>
+          <span className="num shrink-0 text-fg">
+            Rs {rs(MAINTENANCE.labourLowRs)} to {rs(MAINTENANCE.labourHighRs)}
+          </span>
+        </li>
+        <li className="flex justify-between gap-3">
+          <span className="text-muted">{SERVICE_LINE}</span>
+          <span className="num shrink-0 text-fg">
+            Rs {rs(Math.round(MAINTENANCE.serviceLowRs))} to {rs(Math.round(MAINTENANCE.serviceHighRs))}
+          </span>
+        </li>
+      </ul>
       <p className="mt-2 text-xs text-muted">
-        Visit price: {MAINTENANCE.visitSource} ({ESTIMATE_LABEL}). {MAINTENANCE.separately}
+        Labour: {MAINTENANCE.visitSource}. {MAINTENANCE.separately}
       </p>
     </details>
   );

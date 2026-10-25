@@ -6,7 +6,7 @@ import { DEFAULTS, ENGINE_SOURCES, ROOF_TYPES } from "@/lib/engine";
 import { ANNUAL_NORMAL_MM, GAUGES, MONSOON_NORMAL_MM, MONTHLY_NORMALS, NORMALS_SOURCE, PRESETS, STORMS } from "@/data/storms";
 import { FOOTAGE } from "./landing/footage";
 import { TANKER_PRESETS, TANKER_SIZE } from "@/config/tankers";
-import { ESTIMATE_LABEL, MAINTENANCE, PARTS } from "@/config/packages";
+import { ESTIMATE_LABEL, MAINTENANCE, PARTS, SERVICE_MARGIN } from "@/config/packages";
 import { priceLabel } from "@/lib/price";
 
 const WETTEST_MONTH_MM = Math.max(...MONTHLY_NORMALS.map((m) => m.mm));
@@ -136,9 +136,14 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           ))}
           <li>Pipe length and labour days in a quote are estimates, confirmed on site visit.</li>
           <li>
+            RainGrid service ({Math.round(SERVICE_MARGIN * 100)}%): added to parts and labour in every quote and to the
+            maintenance visit, for vetting the installer, a quality check and the warranty. It is RainGrid&apos;s own
+            charge, not a market price, and is shown as its own line.
+          </li>
+          <li>
             Yearly maintenance visit: Rs {MAINTENANCE.visitLowRs.toLocaleString("en-US")} to{" "}
-            {MAINTENANCE.visitHighRs.toLocaleString("en-US")}, {MAINTENANCE.visitSource} ({ESTIMATE_LABEL}).{" "}
-            {MAINTENANCE.separately}
+            {MAINTENANCE.visitHighRs.toLocaleString("en-US")}: {MAINTENANCE.visitSource} ({ESTIMATE_LABEL}), plus the
+            RainGrid service. {MAINTENANCE.separately}
           </li>
           <li>
             Instalments are the quote range split evenly over 6 or 12 months, before any financing charges. They are

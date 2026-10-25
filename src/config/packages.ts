@@ -158,9 +158,20 @@ export const RECHARGE_ADDON = {
   price: "quote on site visit",
 };
 
+// RainGrid's own charge on every installed quote and every maintenance
+// visit: vetting the installer, a quality check after the job, and the
+// warranty. It is a business decision, not a market price, so it has no
+// source and no estimate flag; it is shown as its own line.
+export const SERVICE_MARGIN = 0.15;
+export const SERVICE_LINE = `RainGrid service: vetting, quality check, warranty (${Math.round(SERVICE_MARGIN * 100)}%)`;
+
 // Yearly maintenance plan. The visit is priced from the sourced plumber and
-// helper day rates; consumables have no source yet, so they are quoted on
-// the visit rather than given a made-up number.
+// helper day rates plus the service margin; consumables have no source yet,
+// so they are quoted on the visit rather than given a made-up number.
+const labourLowRs = PARTS.plumber.price!.lowRs + PARTS.helper.price!.lowRs;
+const labourHighRs = PARTS.plumber.price!.highRs + PARTS.helper.price!.highRs;
+const hundred = (rs: number) => Math.round(rs / 100) * 100;
+
 export const MAINTENANCE = {
   tasks: [
     { name: "Tank clean", what: "Drain, scrub and rinse the tank; check the lid and the overflow mesh." },
@@ -169,8 +180,13 @@ export const MAINTENANCE = {
     { name: "Water test", what: "A basic test of the stored water, and a lab test if you drink it." },
   ],
   // One plumber day plus one helper day, from PARTS.
-  visitLowRs: PARTS.plumber.price!.lowRs + PARTS.helper.price!.lowRs,
-  visitHighRs: PARTS.plumber.price!.highRs + PARTS.helper.price!.highRs,
+  labourLowRs,
+  labourHighRs,
+  serviceLowRs: labourLowRs * SERVICE_MARGIN,
+  serviceHighRs: labourHighRs * SERVICE_MARGIN,
+  // The visit price: labour plus the service margin, to the nearest Rs 100.
+  visitLowRs: hundred(labourLowRs * (1 + SERVICE_MARGIN)),
+  visitHighRs: hundred(labourHighRs * (1 + SERVICE_MARGIN)),
   visitSource: "one plumber day and one helper day at Avenir Developments Q4 2026 rates",
   separately: "Filter cartridges and a lab water test are quoted on the visit.",
 };
