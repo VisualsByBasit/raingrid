@@ -60,6 +60,26 @@ export function measuredAt(gaugeName: string, km: number): string {
   return `measured at ${gaugeLabel(gaugeName)}, ${distanceLabel(km)} from your roof`;
 }
 
+// How well the nearest gauge stands in for rain on this roof. Rain varies
+// across sectors, so the further the gauge, the less it tells you.
+export type GaugeConfidence = "good" | "fair" | "low";
+
+export function gaugeConfidence(km: number): GaugeConfidence {
+  if (km < 3) return "good";
+  if (km <= 8) return "fair";
+  return "low";
+}
+
+export const GAUGE_CONFIDENCE_LABEL: Record<GaugeConfidence, string> = {
+  good: "Good match",
+  fair: "Fair match",
+  low: "Low match",
+};
+
+export function gaugeConfidenceNote(km: number): string {
+  return `The gauge is ${distanceLabel(km)} from your roof. Rain varies across sectors, even a few km apart: under 3 km is a good match, 3 to 8 km fair, over 8 km low.`;
+}
+
 export function isLargeComplex(areaM2: number, source: RoofSource): boolean {
   // Only outlines (map or drawn) can accidentally cover a complex; a typed
   // area is exactly what the user meant.

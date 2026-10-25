@@ -9,12 +9,16 @@ import {
   mmToFillTank,
   roundL,
   roundSplitForDisplay,
+  tankWhatIf,
   type RainResult,
   type RoofType,
   type RoofTypeSpec,
 } from "@/lib/engine";
 import {
+  GAUGE_CONFIDENCE_LABEL,
   depthLine,
+  gaugeConfidence,
+  gaugeConfidenceNote,
   gaugeLabel,
   isLargeComplex,
   largeComplexNotice,
@@ -60,7 +64,7 @@ export interface ResultPanelProps {
   removeRoof: (id: string) => void;
   choice: StormChoice;
   setChoice: (c: StormChoice) => void;
-  rain: { mm: number; label: string; where: string };
+  rain: { mm: number; label: string; where: string; km?: number };
   setup: Setup;
   setSetup: (s: Setup) => void;
   result: RainResult | null;
@@ -107,16 +111,40 @@ const Step = ({
 
 const btn = "rounded-lg border border-line px-3 py-2 text-sm transition hover:border-tank/60 hover:text-fg";
 
-// "157 mm (?) of rain · measured at Saidpur gauge, 3 km from your roof"
-function RainLine({ mm, where, className = "" }: { mm: number; where: string; className?: string }) {
+const CONFIDENCE_STYLE = {
+  good: "bg-ground/10 text-ground-deep",
+  fair: "bg-tank/10 text-tank-deep",
+  low: "bg-drain/10 text-drain-deep",
+} as const;
+
+// "Good match (?)": how well the nearest gauge stands in for this roof.
+function GaugeBadge({ km }: { km: number }) {
+  const level = gaugeConfidence(km);
+  return (
+    <span className="ml-1 inline-flex items-center whitespace-nowrap align-middle">
+      <span className={`rounded-full px-1.5 py-px text-[11px] font-medium ${CONFIDENCE_STYLE[level]}`}>
+        {GAUGE_CONFIDENCE_LABEL[level]}
+      </span>
+      <Hint text={gaugeConfidenceNote(km)} label="How good is this gauge for my roof?" />
+    </span>
+  );
+}
+
+// "157 mm (?) of rain · measured at Saidpur gauge, 3 km from your roof [Fair match]"
+function RainLine({ mm, where, km, className = "" }: { mm: number; where: string; km?: number; className?: string }) {
   return (
     <p className={className}>
       <span className="num font-semibold text-tank-deep">{mm.toLocaleString("en-US")} mm</span>
       <Hint text={mmExplainer(mm)} label="What does mm of rain mean?" />{" "}
       of rain · {where}
+      {km != null && <GaugeBadge km={km} />}
     </p>
   );
 }
+
+// Recharge depends on the ground under the plot, which no map can show.
+const RECHARGE_SUITABILITY =
+  "Recharge suitability depends on your soil and the depth to groundwater, so it is checked on the site visit. RAIN//GRID shows water routed toward a well, never measured infiltration.";
 
 // One line of "Your setup": label, value and a "?" explanation.
 function SetupRow({ label, value, hint }: { label: string; value: string; hint: string }) {
@@ -134,7 +162,7 @@ function SetupRow({ label, value, hint }: { label: string; value: string; hint: 
 const SETUP_HINTS = {
   tank: "The water tank your house has. One 2,000 L tank is common. Change it to match yours.",
   recharge: "A filtered pit that sends overflow into the ground instead of the drain.",
-  roof: "Concrete roofs lose more water than metal sheets.",
+  roof: "Concrete roofs lose more water than metal sheets. Not sure? Pick Other: the range gets wider instead of guessing.",
   share: "Part of the roof lost to the water tank, stair room and parapets.",
 };
 
@@ -278,7 +306,7 @@ export default function ResultPanel(p: Props) {
                   onChange={() => p.setChoice({ kind: "storm", id: s.id })}
                 />
                 <span className="block font-medium">{s.dateLabel}</span>
-                <RainLine mm={mm} where={where} className="mt-0.5 text-[13px] text-fg" />
+                <RainLine mm={mm} where={where} km={r?.km} className="mt-0.5 text-[13px] text-fg" />
                 <span className="mt-0.5 block text-xs text-muted">
                   {s.title}. {s.blurb}
                 </span>
@@ -328,10 +356,31 @@ export default function ResultPanel(p: Props) {
       {/* 03 Setup */}
       {show(3) && (
       <Step n="03" title="Your setup" bare={bare}>
-        <dl className="space-y-1.5">
-          <SetupRow label="Tank" value={`${p.setup.tankLitres.toLocaleString("en-US")} L`} hint={SETUP_HINTS.tank} />
+        <TankControl p={p} />
+        <div className="mt-4">
+          <p className="text-xs text-muted">
+            Roof surface
+            <Hint text={SETUP_HINTS.roof} label="About roof type" />
+          </p>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Roof surface">
+            {(Object.keys(p.roofTypes) as RoofType[]).map((k) => (
+              <button
+                key={k}
+                role="radio"
+                aria-checked={p.setup.roofType === k}
+                onClick={() => p.setSetup({ ...p.setup, roofType: k })}
+                className={`${btn} px-2 text-xs leading-tight ${p.setup.roofType === k ? "border-tank/70 bg-tank/10 text-fg" : ""}`}
+              >
+                {p.roofTypes[k].label}
+              </button>
+            ))}
+          </div>
+          <p className="num mt-1 text-[11px] text-muted">
+            Runoff coefficient {p.roofTypes[p.setup.roofType].low} to {p.roofTypes[p.setup.roofType].high}
+          </p>
+        </div>
+        <dl className="mt-4 space-y-1.5">
           <SetupRow label="Recharge well" value={p.setup.hasRecharge ? "Yes" : "No"} hint={SETUP_HINTS.recharge} />
-          <SetupRow label="Roof type" value={p.roofTypes[p.setup.roofType].label} hint={SETUP_HINTS.roof} />
           <SetupRow label="Usable share" value={`${Math.round(p.setup.usableShare * 100)}%`} hint={SETUP_HINTS.share} />
         </dl>
         <button
@@ -339,25 +388,16 @@ export default function ResultPanel(p: Props) {
           aria-expanded={showSetup}
           className="mt-2 text-xs text-tank-deep underline underline-offset-4"
         >
-          {showSetup ? "Hide" : "Edit your setup"}
+          {showSetup ? "Hide" : "Edit recharge and usable share"}
         </button>
         <AnimatePresence initial={false}>
           {showSetup && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
               <div className="mt-3 space-y-3">
-                <label className="block">
-                  <span className="text-xs text-muted">Tank size (litres)</span>
-                  <input
-                    inputMode="numeric"
-                    value={p.setup.tankLitres}
-                    onChange={(e) => p.setSetup({ ...p.setup, tankLitres: Math.min(1_000_000, Number(e.target.value.replace(/\D/g, "")) || 0) })}
-                    className="num mt-1 w-full rounded-lg border border-line bg-ink px-3 py-2 outline-none focus:border-tank"
-                  />
-                </label>
                 <label className="flex items-center justify-between gap-3">
                   <span>
                     <span className="block">Recharge well</span>
-                    <span className="text-xs text-muted">Routes overflow toward recharge; actual infiltration needs a site assessment</span>
+                    <span className="text-xs text-muted">{RECHARGE_SUITABILITY}</span>
                   </span>
                   <input
                     type="checkbox"
@@ -366,17 +406,6 @@ export default function ResultPanel(p: Props) {
                     className="h-5 w-5 accent-[var(--color-ground)]"
                   />
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(p.roofTypes) as RoofType[]).map((k) => (
-                    <button
-                      key={k}
-                      onClick={() => p.setSetup({ ...p.setup, roofType: k })}
-                      className={`${btn} ${p.setup.roofType === k ? "border-tank/70 bg-tank/10" : ""}`}
-                    >
-                      {p.roofTypes[k].label}
-                    </button>
-                  ))}
-                </div>
                 <label className="block">
                   <span className="text-xs text-muted">
                     Share of roof that drains to your pipes: <span className="num text-fg">{Math.round(p.setup.usableShare * 100)}%</span>
@@ -490,7 +519,7 @@ function Result({ result, phase, rain, autoScroll }: { result: RainResult; phase
     <div ref={box} className="mt-4 scroll-mt-4 space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <RainLine mm={rain.mm} where={rain.where} className="text-xs text-fg" />
+          <RainLine mm={rain.mm} where={rain.where} km={rain.km} className="text-xs text-fg" />
           <p className="num mt-1 text-3xl font-semibold text-fg">{roundL(gross).toLocaleString("en-US")} L</p>
           <p className="text-xs text-muted">landed on this roof</p>
           {phase === "done" && (
@@ -563,6 +592,7 @@ function Result({ result, phase, rain, autoScroll }: { result: RainResult; phase
               <p className="mt-1 text-xs text-muted">
                 Harvestable after losses: {formatRange(result.net.low, result.net.high)}, depending on roof surface.
               </p>
+              {result.split.rechargePotential > 0 && <p className="mt-1 text-xs text-muted">{RECHARGE_SUITABILITY}</p>}
             </div>
 
             <RainPlan result={result} fillMm={fillMm} />
@@ -601,7 +631,7 @@ function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
             {bigger
               ? hasRecharge
                 ? "Keep the overflow pipe to your recharge well clear, and have the filter pit cleaned before each monsoon."
-                : `Your roof catches far more than one tank. Ask a qualified professional whether a filtered recharge well suits your plot, so the overflow feeds groundwater instead of the drain.`
+                : "Your roof catches far more than one tank. A filtered recharge well could send the overflow toward groundwater instead of the drain. Whether your plot suits one depends on the soil and the depth to groundwater, which is checked on a site visit."
               : "Your tank can hold this whole storm. Use it between rains so it has room for the next one."}
           </span>
         </li>
@@ -618,6 +648,69 @@ function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
         Preliminary estimate only. Site-specific design, construction and any potable use need a qualified professional and
         compliance with local rules.
       </p>
+    </div>
+  );
+}
+
+// The tank, kept up front: size stepper plus what 1,000 L more or less
+// would change for the chosen storm.
+function TankControl({ p }: { p: Props }) {
+  const size = p.setup.tankLitres;
+  const set = (v: number) => p.setSetup({ ...p.setup, tankLitres: Math.max(0, Math.min(1_000_000, v)) });
+  const what = p.active && p.rain.mm > 0 ? tankWhatIf({ areaM2: p.active.areaM2, rainMm: p.rain.mm, ...p.setup }) : null;
+  const elsewhere = p.setup.hasRecharge ? "toward recharge" : "to the drain";
+  const stepBtn =
+    "grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-line text-lg text-fg transition hover:border-tank/60 disabled:opacity-40";
+  return (
+    <div className="rounded-xl border border-tank/30 bg-tank/5 p-3">
+      <p className="text-xs text-muted">
+        Your tank
+        <Hint text={SETUP_HINTS.tank} label="About tank" />
+      </p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <button className={stepBtn} onClick={() => set(size - 500)} disabled={size <= 0} aria-label="Tank 500 litres smaller">
+          −
+        </button>
+        <label className="relative flex-1">
+          <span className="sr-only">Tank size in litres</span>
+          <input
+            inputMode="numeric"
+            value={size}
+            onChange={(e) => set(Number(e.target.value.replace(/\D/g, "")) || 0)}
+            className="num h-10 w-full rounded-lg border border-line bg-panel px-3 pr-8 text-center text-lg font-semibold outline-none focus:border-tank"
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">L</span>
+        </label>
+        <button className={stepBtn} onClick={() => set(size + 500)} aria-label="Tank 500 litres bigger">
+          +
+        </button>
+      </div>
+      {what && (
+        <ul className="mt-2 space-y-0.5 text-xs text-fg">
+          <li>
+            With a <span className="num">{formatL(what.biggerSize)}</span> tank:{" "}
+            {what.biggerGain >= 10 ? (
+              <>
+                <span className="num text-tank-deep">{formatL(what.biggerGain)}</span> more stored from this storm
+              </>
+            ) : (
+              "no more stored, this storm already fits"
+            )}
+          </li>
+          {what.smallerSize < size && (
+            <li>
+              With {what.smallerSize > 0 ? <>a <span className="num">{formatL(what.smallerSize)}</span> tank</> : "no tank"}:{" "}
+              {what.smallerLoss >= 10 ? (
+                <>
+                  <span className="num text-drain-deep">{formatL(what.smallerLoss)}</span> less stored, sent {elsewhere} instead
+                </>
+              ) : (
+                "stores the same for this storm"
+              )}
+            </li>
+          )}
+        </ul>
+      )}
     </div>
   );
 }

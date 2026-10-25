@@ -2,7 +2,7 @@
 // Pure, deterministic, no network. The only source of numbers in the app.
 // Unit fact: 1 mm of rain on 1 m2 of roof is exactly 1 litre.
 
-export type RoofType = "rcc" | "metal";
+export type RoofType = "rcc" | "metal" | "other";
 
 export interface RoofTypeSpec {
   label: string;
@@ -14,9 +14,12 @@ export interface RoofTypeSpec {
 // Roof-catchment ranges from the Indian Railways Institute's 2022 rainwater
 // harvesting manual. RCC uses the midpoint of the cited 0.6–0.8 range for the
 // headline estimate; the low and high values remain visible as a range.
+// "Other or not sure" (tiles, brick, mixed roofs) has no separate cited
+// value, so it spans both cited ranges, 0.6–0.9, and shows a wider range.
 export const ROOF_TYPES: Record<RoofType, RoofTypeSpec> = {
   rcc: { label: "Flat concrete (RCC)", low: 0.6, mid: 0.7, high: 0.8 },
   metal: { label: "Metal sheet", low: 0.7, mid: 0.8, high: 0.9 },
+  other: { label: "Other or not sure", low: 0.6, mid: 0.75, high: 0.9 },
 };
 
 export const ENGINE_SOURCES = {
@@ -186,6 +189,23 @@ export function aggregate(results: RainResult[]) {
     }),
     { gross: 0, tank: 0, rechargePotential: 0, drain: 0, lost: 0, netLow: 0, netHigh: 0 },
   );
+}
+
+// What a bigger or smaller tank changes for this storm (mid coefficient):
+// litres a tank `step` larger would also have stored, and litres a tank
+// `step` smaller would have sent on to recharge or the drain instead.
+export function tankWhatIf(input: RainInput, step = 1000) {
+  const base = calculate(input);
+  const size = base.inputs.tankLitres;
+  const smallerSize = Math.max(0, size - step);
+  const bigger = calculate({ ...input, tankLitres: size + step });
+  const smaller = calculate({ ...input, tankLitres: smallerSize });
+  return {
+    biggerSize: size + step,
+    smallerSize,
+    biggerGain: bigger.split.tank - base.split.tank,
+    smallerLoss: base.split.tank - smaller.split.tank,
+  };
 }
 
 // How many mm of rain it takes to fill the tank (including first flush).

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   LARGE_COMPLEX_M2,
+  gaugeConfidence,
+  gaugeConfidenceNote,
   depthCm,
   depthLine,
   isLargeComplex,
@@ -70,5 +72,19 @@ describe("large complex label", () => {
 
   it("states the area in the notice", () => {
     expect(largeComplexNotice(72_148.4)).toContain("(72,148 m²)");
+  });
+});
+
+describe("gauge confidence", () => {
+  it("is good under 3 km, fair from 3 to 8 km, low over 8 km", () => {
+    expect(gaugeConfidence(0)).toBe("good");
+    expect(gaugeConfidence(2.9)).toBe("good");
+    expect(gaugeConfidence(3)).toBe("fair");
+    expect(gaugeConfidence(8)).toBe("fair");
+    expect(gaugeConfidence(8.1)).toBe("low");
+  });
+
+  it("explains that rain varies across sectors", () => {
+    expect(gaugeConfidenceNote(5.4)).toMatch(/^The gauge is 5 km from your roof\. Rain varies across sectors/);
   });
 });

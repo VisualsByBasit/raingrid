@@ -51,7 +51,8 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
             <a className="underline underline-offset-2 hover:text-tank" href={ENGINE_SOURCES.runoff.url} target="_blank" rel="noreferrer">
               Runoff source ↗
             </a>{" "}
-            {ENGINE_SOURCES.runoff.note}
+            {ENGINE_SOURCES.runoff.note} &ldquo;Other or not sure&rdquo; has no separate cited value, so it spans both cited
+            ranges and shows a wider result.
           </li>
           <li>
             First flush diverted: {DEFAULTS.firstFlushMm} mm per storm. {ENGINE_SOURCES.firstFlush.note}{" "}
@@ -64,7 +65,7 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
             room and parapets take up roof space. You can change it.
           </li>
           <li>Tank: {DEFAULTS.tankLitres.toLocaleString()} L by default. You can change it.</li>
-          <li>“Routed toward recharge” is potential routing, not measured infiltration. Soil, design and well capacity need professional assessment.</li>
+          <li>“Routed toward recharge” is potential routing, never measured infiltration. Recharge suitability depends on soil and depth to groundwater, so it is checked on the site visit.</li>
           <li>Results are shown as ranges and rounded to the nearest 100 L.</li>
           <li>Harvested rainwater is for gardening, washing, flushing, cleaning and recharge. Not for drinking.</li>
         </ul>
@@ -110,7 +111,9 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           ))}
         </ul>
         <p className="mt-2 text-xs text-muted/80">
-          Your roof uses the nearest gauge that reported that storm. Gauge locations are approximate.
+          Your roof uses the nearest gauge that reported that storm. Gauge locations are approximate. Rain varies across
+          sectors, so each reading carries a match badge: under 3 km good, 3 to 8 km fair, over 8 km low. These bands are
+          RAIN//GRID&apos;s own rule of thumb, not a published standard.
         </p>
 
         <h3 className="mt-6 font-semibold">City facts</h3>

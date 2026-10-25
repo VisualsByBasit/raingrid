@@ -26,6 +26,7 @@
   --color-ground: var(--color-leaf); /* recharge */
   --color-ground-deep: #0b7f5b; /* leaf, deepened so white text stays AA */
   --color-drain: #fb923c; /* only for "routed to the drain" */
+  --color-drain-deep: #c2410c; /* drain, deepened for small text on light */
   --color-lost: #94a3b8;
 
   --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;

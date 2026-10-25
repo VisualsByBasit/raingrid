@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, calculate, formatRange, mmToFillTank, roundL, roundSplitForDisplay } from "./index";
+import { aggregate, calculate, formatRange, mmToFillTank, roundL, roundSplitForDisplay, tankWhatIf } from "./index";
 
 describe("rain engine", () => {
   it("1 mm on 1 m2 is exactly 1 litre gross", () => {
@@ -101,5 +101,36 @@ describe("tank fill", () => {
   });
   it("a zero-capacity tank is full from 0 mm", () => {
     expect(mmToFillTank({ areaM2: 250, rainMm: 0, tankLitres: 0 })).toBe(0);
+  });
+});
+
+describe("roof types", () => {
+  it("other spans both cited ranges", () => {
+    const other = calculate({ areaM2: 100, rainMm: 10.5, usableShare: 1, roofType: "other" });
+    expect(other.net.low).toBeCloseTo(600);
+    expect(other.net.mid).toBeCloseTo(750);
+    expect(other.net.high).toBeCloseTo(900);
+  });
+});
+
+describe("tank what-if", () => {
+  it("shows what 1,000 L more or less changes when the tank overflows", () => {
+    // 200 m2, 85% usable, 20.5 mm, RCC 0.7: 200 * 0.85 * 20 * 0.7 = 2,380 L net.
+    const w = tankWhatIf({ areaM2: 200, rainMm: 20.5, tankLitres: 2000 });
+    expect(w.biggerSize).toBe(3000);
+    expect(w.smallerSize).toBe(1000);
+    expect(w.biggerGain).toBeCloseTo(380);
+    expect(w.smallerLoss).toBeCloseTo(1000);
+  });
+
+  it("gains nothing from a bigger tank when the storm already fits", () => {
+    const w = tankWhatIf({ areaM2: 50, rainMm: 10.5, tankLitres: 2000 });
+    expect(w.biggerGain).toBe(0);
+  });
+
+  it("never goes below an empty tank", () => {
+    const w = tankWhatIf({ areaM2: 200, rainMm: 50, tankLitres: 500 });
+    expect(w.smallerSize).toBe(0);
+    expect(w.smallerLoss).toBeCloseTo(500);
   });
 });
