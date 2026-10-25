@@ -24,6 +24,7 @@ const STEPS: { n: StepNo; title: string }[] = [
   { n: 3, title: "Your setup" },
   { n: 4, title: "Replay it" },
   { n: 5, title: "Your street" },
+  { n: 6, title: "Get it installed" },
 ];
 
 function snapPx(snap: Snap): number {
@@ -47,7 +48,7 @@ export default function PhoneSheet({ panel, stormPicked, onStormPicked }: { pane
     if (n === 1) return null;
     if (!hasRoof) return "Pick a roof first";
     if (n === 4 && !stormPicked) return "Pick a storm first";
-    if (n === 5 && panel.phase !== "done") return "Replay the storm first";
+    if (n >= 5 && panel.phase !== "done") return "Replay the storm first";
     return null;
   };
 
@@ -169,11 +170,11 @@ export default function PhoneSheet({ panel, stormPicked, onStormPicked }: { pane
     const dy = e.clientY - s.y;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
     const next = (step + (dx < 0 ? 1 : -1)) as StepNo;
-    if (next >= 1 && next <= 5) go(next);
+    if (next >= 1 && next <= STEPS.length) go(next);
   };
 
   const prev = step > 1 ? ((step - 1) as StepNo) : null;
-  const next = step < 5 ? ((step + 1) as StepNo) : null;
+  const next = step < STEPS.length ? ((step + 1) as StepNo) : null;
   const nextBlocked = next ? blocked(next) : "Last step";
   const title = STEPS[step - 1].title;
 
@@ -301,7 +302,8 @@ function NextButton({
     2: panel.active ? { to: 3, label: "Next: your setup" } : null,
     3: panel.active ? { to: 4, label: "Next: replay it" } : null,
     4: panel.phase === "done" ? { to: 5, label: "Next: your street" } : null,
-    5: null,
+    5: panel.phase === "done" ? { to: 6, label: "Next: get it installed" } : null,
+    6: null,
   };
   const n = next[step];
   // Step 2 -> 3 also confirms the storm, so it is never blocked by it.
@@ -328,8 +330,10 @@ function KeyLine({ panel, step, blockedHint }: { panel: ResultPanelProps; step: 
     text = `${panel.setup.tankLitres.toLocaleString("en-US")} L tank · ${panel.setup.hasRecharge ? "recharge well" : "no recharge well"}`;
   } else if (step === 4) {
     text = panel.result && panel.phase === "done" ? `${formatL(roundL(panel.result.gross))} landed on this roof` : "Ready to replay the storm";
-  } else {
+  } else if (step === 5) {
     text = panel.street ? `${panel.street.count} roofs · ${formatL(panel.street.tank)} stored` : "Add your neighbours' roofs";
+  } else {
+    text = "Package, price and a free site visit";
   }
   return (
     <p className="truncate px-2 pb-1 text-center text-xs text-muted" aria-live="polite">

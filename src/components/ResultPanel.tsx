@@ -35,6 +35,7 @@ import Pledge from "./act/Pledge";
 import StreetProgressCard from "./act/StreetProgressCard";
 import SystemDiagram from "./act/SystemDiagram";
 import TankerCompare from "./act/TankerCompare";
+import QuoteCard from "./service/QuoteCard";
 import { GuideToggle } from "./guide/GuideContext";
 import Hint from "./guide/Hint";
 
@@ -50,7 +51,7 @@ interface Street {
   potentialWithWells: number;
 }
 
-export type StepNo = 1 | 2 | 3 | 4 | 5;
+export type StepNo = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface ResultPanelProps {
   roofs: Roof[];
@@ -490,6 +491,13 @@ export default function ResultPanel(p: Props) {
               Copy street link
             </button>
           )}
+        </Step>
+      )}
+
+      {/* 06 Get it installed */}
+      {show(6) && p.phase === "done" && p.result && (
+        <Step n="06" title="Get it installed" bare={bare}>
+          <QuoteCard result={p.result} />
         </Step>
       )}
 
