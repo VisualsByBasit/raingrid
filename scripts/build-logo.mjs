@@ -2,6 +2,7 @@
 //   src/app/icon.png        512 x 512 (favicon)
 //   src/app/apple-icon.png  180 x 180 (Apple touch icon)
 //   public/media/logo-transparent.png  256 x 256, black keyed out (README)
+//   public/media/logo-mark.png          96 x 96, the same, for the header mark
 // Trims the near-black background (luminance above 20), then pads back to
 // a centred square with about 6% margin on the same black. Rerun after
 // changing the logo:
@@ -62,6 +63,7 @@ console.log(`trimmed ${width}x${height} -> square ${side} (bg rgb ${corner[0]},$
 // bright glass rim, found by flood fill from the frame's edge) stays opaque,
 // so dark trees and shadows inside the scene don't turn see-through.
 const TRANSPARENT = { file: "public/media/logo-transparent.png", size: 256, lo: 12, hi: 60 };
+const MARK = { file: "public/media/logo-mark.png", size: 96 };
 const smooth = (lo, hi, x) => {
   const t = Math.min(1, Math.max(0, (x - lo) / (hi - lo)));
   return t * t * (3 - 2 * t);
@@ -101,11 +103,13 @@ for (let i = 0, j = 0, o = 0; j < n; i += 3, j++, o += 4) {
   for (let c = 0; c < 3; c++) rgba[o + c] = Math.min(255, Math.round(sq[i + c] * k));
   rgba[o + 3] = Math.round(a * 255);
 }
-await sharp(rgba, { raw: { width: W, height: H, channels: 4 } })
-  .resize(TRANSPARENT.size, TRANSPARENT.size, { kernel: "lanczos3" })
-  .png({ compressionLevel: 9 })
-  .toFile(TRANSPARENT.file);
-console.log(`wrote ${TRANSPARENT.file}`);
+for (const { file, size } of [TRANSPARENT, MARK]) {
+  await sharp(rgba, { raw: { width: W, height: H, channels: 4 } })
+    .resize(size, size, { kernel: "lanczos3" })
+    .png({ compressionLevel: 9 })
+    .toFile(file);
+  console.log(`wrote ${file}`);
+}
 
 try {
   await unlink("src/app/favicon.ico");

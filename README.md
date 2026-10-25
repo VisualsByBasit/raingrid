@@ -51,7 +51,7 @@ No API keys needed. Everything runs on free, keyless services.
 | `src/components/` | Map, rain canvas, panels, landing, loader and guided tour |
 | `src/components/three/` | The hero's WebGL scene: living plate shader, GPU rain, refracting droplet, fallback detection |
 | `scripts/build-hero-assets.mjs` | Compresses the Islamabad plate and builds its hand-tuned depth map and effect masks |
-| `scripts/build-logo.mjs` | Builds the favicon, the Apple touch icon and the transparent README logo from the logo art |
+| `scripts/build-logo.mjs` | Builds the favicon, the Apple touch icon, the transparent README logo and the header mark from the logo art |
 | `scripts/extract-footprints.mjs` | Builds `public/data/footprints/islamabad-demo.geojson` (static OSM footprints for E-11, F-10, F-7, G-11, H-8 and Satellite Town, Rawalpindi). Kept in the repo but **not used by the map**: static footprints drew on top of the live buildings, so the map now uses live buildings only, with draw and type-area as the fallback |
 | `scripts/copy-maplibre-worker.mjs` | Copies MapLibre's worker into `public/` (runs before dev and build) |
 | `docs/scope-decisions.md` | Explicit feature cuts and their honesty rationale |

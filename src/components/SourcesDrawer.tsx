@@ -3,8 +3,10 @@
 import { motion } from "framer-motion";
 import { CITY } from "@/config/city";
 import { DEFAULTS, ENGINE_SOURCES, ROOF_TYPES } from "@/lib/engine";
-import { GAUGES, MONTHLY_NORMALS, NORMALS_SOURCE, PRESETS, STORMS } from "@/data/storms";
+import { ANNUAL_NORMAL_MM, GAUGES, MONSOON_NORMAL_MM, MONTHLY_NORMALS, NORMALS_SOURCE, PRESETS, STORMS } from "@/data/storms";
 import { FOOTAGE } from "./landing/footage";
+
+const WETTEST_MONTH_MM = Math.max(...MONTHLY_NORMALS.map((m) => m.mm));
 
 export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
   return (
@@ -57,7 +59,10 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
               National guideline ↗
             </a>
           </li>
-          <li>Usable roof share: 100% until you reduce it for tanks, stairs, solar panels, or sections not connected to the system.</li>
+          <li>
+            Usable roof share: {Math.round(DEFAULTS.usableShare * 100)}% of the measured outline by default, because tanks, the stair
+            room and parapets take up roof space. You can change it.
+          </li>
           <li>Tank: {DEFAULTS.tankLitres.toLocaleString()} L by default. You can change it.</li>
           <li>“Routed toward recharge” is potential routing, not measured infiltration. Soil, design and well capacity need professional assessment.</li>
           <li>Results are shown as ranges and rounded to the nearest 100 L.</li>
@@ -68,13 +73,14 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
         <div className="mt-3 grid h-32 grid-cols-12 items-end gap-1" aria-label="Monthly rainfall normals bar chart">
           {MONTHLY_NORMALS.map((month) => (
             <div key={month.month} className="flex h-full flex-col items-center justify-end gap-1" title={`${month.month}: ${month.mm} mm`}>
-              <div className="w-full rounded-t bg-tank/70" style={{ height: `${Math.max(3, (month.mm / 317) * 100)}%` }} />
+              <div className="w-full rounded-t bg-tank/70" style={{ height: `${Math.max(3, (month.mm / WETTEST_MONTH_MM) * 100)}%` }} />
               <span className="num text-[8px] text-muted">{month.month.slice(0, 1)}</span>
             </div>
           ))}
         </div>
         <p className="mt-2 text-xs text-muted">
-          July–September: 763.0 mm · annual: 1,261.2 mm. Source: {" "}
+          July to September: {MONSOON_NORMAL_MM.toLocaleString("en-US", { minimumFractionDigits: 1 })} mm · annual:{" "}
+          {ANNUAL_NORMAL_MM.toLocaleString("en-US", { minimumFractionDigits: 1 })} mm. Source:{" "}
           <a className="underline underline-offset-2 hover:text-tank" href={NORMALS_SOURCE.url} target="_blank" rel="noreferrer">
             {NORMALS_SOURCE.label} ↗
           </a>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Environment, Lightformer, useProgress } from "@react-three/drei";
+import { Environment, Lightformer, PerformanceMonitor, useProgress } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Noise, SMAA, Vignette } from "@react-three/postprocessing";
 import { Suspense, useEffect, useMemo, useState, type RefObject } from "react";
@@ -63,14 +63,27 @@ function Scene({
 }) {
   const size = useThree((s) => s.size);
   const phone = size.width < 768 || size.width / size.height < 0.8;
+  // Phones start the droplet's transmission buffer at 256 px and raise it to
+  // 512 only while the device holds 50 fps or more; it drops back if frames
+  // slow down, and settles on 256 after three flips. Desktop stays at 1024.
+  const [phoneBuffer, setPhoneBuffer] = useState(256);
   return (
     <>
+      {tier === "low" && (
+        <PerformanceMonitor
+          bounds={() => [45, 50]}
+          flipflops={3}
+          onIncline={() => setPhoneBuffer(512)}
+          onDecline={() => setPhoneBuffer(256)}
+          onFallback={() => setPhoneBuffer(256)}
+        />
+      )}
       <CameraRig rig={rig} scroller={scroller} />
       <Suspense fallback={null}>
         <Plate rig={rig} phone={phone} />
         <Rain phone={phone} />
         <Lights />
-        <Droplet rig={rig} tier={tier} slot={slot} />
+        <Droplet rig={rig} tier={tier} slot={slot} phoneBuffer={phoneBuffer} />
         {/* No MSAA: multisampled composer targets render black under
             Chrome's D3D11 backend on Windows. SMAA smooths the droplet's edge. */}
         <EffectComposer multisampling={0}>

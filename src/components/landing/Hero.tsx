@@ -9,6 +9,7 @@ import { HERO } from "../story/copy";
 import { PLATE_URL } from "../three/assets";
 import { detectSceneMode, detectSceneTier, type SceneMode } from "../three/sceneMode";
 import HeroBackdrop from "./HeroBackdrop";
+import LogoMark from "../LogoMark";
 
 // Landing hero: the living Islamabad plate (one WebGL scene with the
 // refracting droplet), the 21 July 2025 headline and sector search. Lines
@@ -110,8 +111,11 @@ export default function Hero({
 
       {/* Top bar */}
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-5 py-5 md:px-10 md:py-7">
-        <span className="num text-sm font-semibold tracking-[0.3em] text-glacier">
-          RAIN<span className="text-rain">{"//"}</span>GRID
+        <span className="num flex items-center gap-2.5 text-sm font-semibold tracking-[0.3em] text-glacier">
+          <LogoMark className="h-8 w-8" />
+          <span>
+            RAIN<span className="text-rain">{"//"}</span>GRID
+          </span>
         </span>
         <button onClick={onSources} className="glass-dark rounded-full px-4 py-2 text-xs text-glacier transition hover:bg-white/20">
           How we calculate

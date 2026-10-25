@@ -14,6 +14,7 @@ import type { FlyTarget } from "./MapView";
 import RainCanvas from "./RainCanvas";
 import Intro from "./Intro";
 import Loader from "./Loader";
+import LogoMark from "./LogoMark";
 import PhoneSheet from "./PhoneSheet";
 import ResultPanel, { type ResultPanelProps } from "./ResultPanel";
 import SourcesDrawer from "./SourcesDrawer";
@@ -344,9 +345,13 @@ function RainGrid() {
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start gap-3 p-3 md:p-4">
         <button
           onClick={() => setIntro(true)}
-          className="glass pointer-events-auto rounded-lg px-3 py-2 text-sm font-semibold tracking-[0.2em]"
+          aria-label="RAIN//GRID home"
+          className="glass pointer-events-auto flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold tracking-[0.2em]"
         >
-          RAIN<span className="text-tank">{"//"}</span>GRID
+          <LogoMark className="h-6 w-6" />
+          <span>
+            RAIN<span className="text-tank">{"//"}</span>GRID
+          </span>
         </button>
         {!intro && (
           <button
@@ -399,7 +404,7 @@ function RainGrid() {
 
       {/* Map hints */}
       {!intro && !mapError && (
-        <div className="pointer-events-none absolute left-1/2 top-16 z-10 -translate-x-1/2 md:top-5">
+        <div className="pointer-events-none absolute left-1/2 top-[6.25rem] z-10 -translate-x-1/2 md:left-[calc((100%-416px)/2)] md:top-[4.5rem]">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${mode}-${zoom < 14.5}-${zoom < 16}-${addingNeighbour}`}
