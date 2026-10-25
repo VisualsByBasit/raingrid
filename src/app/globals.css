@@ -460,6 +460,37 @@ h3 {
   }
 }
 
+/* Roof check pins: a teardrop marker with a letter. Dragged by MapLibre. */
+.rg-pin {
+  width: 34px;
+  height: 40px;
+  cursor: grab;
+}
+.rg-pin-shape {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  rotate: -45deg;
+  color: #fff;
+  font: 700 13px/1 var(--font-mono);
+  border: 2px solid #fff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
+}
+.rg-pin-shape > span {
+  rotate: 45deg;
+}
+.rg-pin-tank .rg-pin-shape {
+  background: var(--color-ocean);
+}
+.rg-pin-downpipe .rg-pin-shape {
+  background: var(--color-leaf-deep);
+}
+
 input[type="range"] {
   accent-color: var(--color-tank);
 }

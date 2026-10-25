@@ -5,6 +5,9 @@
 // previews the message. Pure functions, unit tested.
 
 import { ALL_SECTORS } from "../data/sectors";
+import type { Pin } from "./roof";
+
+export type { Pin } from "./roof";
 
 // Read at build time: Next inlines NEXT_PUBLIC_ variables, so a change
 // needs a redeploy.
@@ -42,11 +45,6 @@ export function nearestSector(lat: number, lng: number): string | null {
   }
   // Further than about 3 km from any sector centre: don't guess.
   return best && Math.sqrt(best.d) * 111 < 3 ? best.id : null;
-}
-
-export interface Pin {
-  lat: number;
-  lng: number;
 }
 
 export interface VisitRequest {

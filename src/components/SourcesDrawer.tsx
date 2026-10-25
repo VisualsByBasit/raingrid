@@ -173,6 +173,18 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           </li>
           <li>Map engine: MapLibre GL JS. Geometry: Turf.js.</li>
           <li>
+            Roof check satellite view:{" "}
+            <a className="underline" href="https://s2maps.eu" target="_blank" rel="noreferrer">
+              Sentinel-2 cloudless 2016
+            </a>{" "}
+            by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016),{" "}
+            <a className="underline" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+              CC BY 4.0
+            </a>
+            . 10 m pixels, so it shows the area around a roof, not roof detail. Building heights in the roof check are
+            OpenStreetMap values where mapped.
+          </li>
+          <li>
             Weather card:{" "}
             <a className="underline" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC BY 4.0). Context
             only; no RAIN//GRID number uses the forecast.

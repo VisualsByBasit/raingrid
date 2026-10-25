@@ -39,6 +39,14 @@ describe("shared links", () => {
     expect(decodeShare("?r=33.70,73.05,250").roofs[0].planned).toBe(false);
   });
 
+  it("carries roof check pins, and drops pins outside the city", () => {
+    const roof = { id: "a", label: "Your roof", lat: 33.7, lng: 73.05, areaM2: 250, source: "map" as const };
+    const q = shareQuery([roof], "2025-07-21", { tank: { lat: 33.70001, lng: 73.04995 }, downpipe: null });
+    expect(q).toBe("s=2025-07-21&r=33.70000,73.05000,250&t=33.700010,73.049950");
+    expect(decodeShare(`?${q}`).pins).toEqual({ tank: { lat: 33.70001, lng: 73.04995 }, downpipe: null });
+    expect(decodeShare("?r=33.70,73.05,250&t=0,0&d=x,y").pins).toEqual({ tank: null, downpipe: null });
+  });
+
   it("limits shared streets to 12 roofs", () => {
     const roofs = Array.from({ length: 20 }, (_, i) => `33.70,73.05,${100 + i}`).join(";");
     expect(decodeShare(`?r=${roofs}`).roofs).toHaveLength(SHARE_LIMITS.roofs);

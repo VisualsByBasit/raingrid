@@ -52,3 +52,34 @@ export function newRoofId(prefix: string) {
   counter += 1;
   return `${prefix}-${Date.now().toString(36)}-${counter}`;
 }
+
+// Roof check pins: where a tank could stand and where the downpipe comes
+// down. Both are optional; they travel in the street link and the request.
+export interface Pin {
+  lat: number;
+  lng: number;
+}
+
+export interface RoofPins {
+  tank: Pin | null;
+  downpipe: Pin | null;
+}
+
+export const NO_PINS: RoofPins = { tank: null, downpipe: null };
+
+// Starting spots before the user drags them: the tank just off the roof's
+// west edge, the downpipe on the outline's first corner. Typed roofs (no
+// outline) get small offsets from their centre.
+export function defaultPins(roof: Pick<Roof, "lat" | "lng" | "geometry">): { tank: Pin; downpipe: Pin } {
+  const ring = roof.geometry ? (roof.geometry.type === "Polygon" ? roof.geometry.coordinates[0] : roof.geometry.coordinates[0][0]) : null;
+  if (!ring || ring.length < 3) {
+    return { tank: { lat: roof.lat, lng: roof.lng - 0.00008 }, downpipe: { lat: roof.lat + 0.00005, lng: roof.lng } };
+  }
+  let west = ring[0];
+  for (const p of ring) if (p[0] < west[0]) west = p;
+  return {
+    // About 3 m west of the westernmost corner, level with the roof centre.
+    tank: { lat: roof.lat, lng: west[0] - 0.00003 },
+    downpipe: { lat: ring[0][1], lng: ring[0][0] },
+  };
+}

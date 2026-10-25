@@ -9,7 +9,8 @@ import { ISLAMABAD_STORMS, PRESETS, STORMS, nearestReading } from "@/data/storms
 import { DEFAULTS, ROOF_TYPES, aggregate, calculate, roundL, type RoofType } from "@/lib/engine";
 import { inviteMessage, streetProgress, whatsappShareUrl } from "@/lib/invite";
 import { measuredAt } from "@/lib/explain";
-import { areaOf, centroidOf, newRoofId, type Roof } from "@/lib/roof";
+import { NO_PINS, areaOf, centroidOf, newRoofId, type Roof, type RoofPins } from "@/lib/roof";
+import { detectSceneMode } from "./three/sceneMode";
 import { choiceFromKey, choiceKey, decodeShare, encodeShare, type StormChoice } from "@/lib/share";
 import type { FlyTarget } from "./MapView";
 import RainCanvas from "./RainCanvas";
@@ -20,6 +21,7 @@ import ThemeToggle from "./ThemeToggle";
 import BecomeInstaller from "./service/BecomeInstaller";
 import type { QuoteChoice } from "./service/QuoteCard";
 import RequestVisit from "./service/RequestVisit";
+import RoofCheck from "./service/RoofCheck";
 import { nearestSector } from "@/lib/whatsapp";
 import { useTheme } from "@/lib/theme";
 import PhoneSheet from "./PhoneSheet";
@@ -121,6 +123,12 @@ function RainGrid() {
   const [quoteChoice, setQuoteChoice] = useState<QuoteChoice | null>(null);
   const onQuoteChoice = useCallback((c: QuoteChoice) => setQuoteChoice(c), []);
   const [visitOpen, setVisitOpen] = useState(false);
+  // Roof check: orbit view, satellite, and the tank / downpipe pins for
+  // "Your roof" (a shared link can carry them).
+  const [roofCheck, setRoofCheck] = useState(false);
+  const [satellite, setSatellite] = useState(false);
+  const [pins, setPins] = useState<RoofPins>(shared.pins);
+  const [staticRoofCheck] = useState(() => detectSceneMode() !== "webgl");
   const [installerOpen, setInstallerOpen] = useState(false);
   const isPhone = useIsPhone();
   const theme = useTheme();
@@ -189,6 +197,7 @@ function RainGrid() {
             return prev;
           }
           setJoining(false);
+          setPins(NO_PINS);
           setActiveId(roof.id);
           return [...prev, { ...roof, label: "Your roof" }];
         }
@@ -199,8 +208,9 @@ function RainGrid() {
           if (prev.length >= 11) setToast("Street is full at 12 roofs");
           return next;
         }
-        // Not adding neighbours: replace your roof.
+        // Not adding neighbours: replace your roof (and its pins).
         setActiveId(roof.id);
+        setPins(NO_PINS);
         return [{ ...roof, label: "Your roof" }];
       });
       setPhase("idle");
@@ -287,14 +297,14 @@ function RainGrid() {
   };
 
   const invite = () => {
-    const link = encodeShare(roofs, choiceKey(choice));
+    const link = encodeShare(roofs, choiceKey(choice), pins);
     const stored = street ? street.tank : (result?.split.tank ?? 0);
     const text = inviteMessage({ progress: streetProgress(roofs), storedLitres: roundL(stored), link });
     window.open(whatsappShareUrl(text), "_blank", "noopener,noreferrer");
   };
 
   const share = async () => {
-    const url = encodeShare(roofs, choiceKey(choice));
+    const url = encodeShare(roofs, choiceKey(choice), pins);
     try {
       await navigator.clipboard.writeText(url);
       setToast("Street link copied. Send it to your neighbours.");
@@ -347,6 +357,7 @@ function RainGrid() {
     onQuoteChoice,
     onRequestVisit: () => setVisitOpen(true),
     onBecomeInstaller: () => setInstallerOpen(true),
+    onRoofCheck: () => setRoofCheck(true),
     openSources: () => setShowSources(true),
     roofTypes: ROOF_TYPES,
   };
@@ -375,6 +386,16 @@ function RainGrid() {
           addingNeighbour={addingNeighbour}
           onUpdateRoof={updateRoof}
           theme={theme}
+          roofCheck={{
+            on: roofCheck && !intro,
+            satellite,
+            staticView: staticRoofCheck,
+            pins,
+            onPinsChange: setPins,
+            padding: isPhone
+              ? { top: 120, right: 20, bottom: 380, left: 20 }
+              : { top: 90, right: 440, bottom: 40, left: 420 },
+          }}
         />
       )}
       {mapError && (
@@ -449,7 +470,7 @@ function RainGrid() {
       )}
 
       {/* Map hints */}
-      {!intro && !mapError && (
+      {!intro && !mapError && !roofCheck && (
         <div className="pointer-events-none absolute left-1/2 top-[6.25rem] z-10 -translate-x-1/2 md:left-[calc((100%-416px)/2)] md:top-[4.5rem]">
           <AnimatePresence mode="wait">
             <motion.div
@@ -474,7 +495,30 @@ function RainGrid() {
       )}
 
       {/* Side panel (desktop) / step-by-step bottom sheet (phones) */}
+      {/* Roof check card: left on desktop, in place of the sheet on phones. */}
+      <AnimatePresence>
+        {roofCheck && !intro && active && (
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-30 flex md:inset-x-auto md:bottom-auto md:left-4 md:top-20">
+            <RoofCheck
+              roof={active}
+              roofType={setup.roofType}
+              roofTypes={ROOF_TYPES}
+              setRoofType={(t) => {
+                setSetup((s) => ({ ...s, roofType: t }));
+                resetResult();
+              }}
+              satellite={satellite}
+              setSatellite={setSatellite}
+              pins={pins}
+              staticView={staticRoofCheck}
+              onClose={() => setRoofCheck(false)}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
       {!intro &&
+        !(isPhone && roofCheck && active) &&
         (isPhone ? (
           <PhoneSheet panel={panelProps} stormPicked={stormPicked} onStormPicked={() => setStormPicked(true)} />
         ) : (
@@ -513,8 +557,8 @@ function RainGrid() {
                 ? `Rs ${quoteChoice.quote.lowRs.toLocaleString("en-US")} to ${quoteChoice.quote.highRs.toLocaleString("en-US")}`
                 : null,
               roofAreaM2: active?.areaM2 ?? null,
-              shareLink: encodeShare(roofs, choiceKey(choice)),
-              pins: {},
+              shareLink: encodeShare(roofs, choiceKey(choice), pins),
+              pins,
             }}
           />
         )}

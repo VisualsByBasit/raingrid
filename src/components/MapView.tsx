@@ -1,11 +1,11 @@
 "use client";
 
-import { Map as MLMap, NavigationControl, AttributionControl, setWorkerUrl } from "maplibre-gl";
+import { Map as MLMap, Marker, NavigationControl, AttributionControl, setWorkerUrl } from "maplibre-gl";
 import type { ExpressionSpecification, GeoJSONSource, MapGeoJSONFeature, StyleSpecification } from "maplibre-gl";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CITY } from "@/config/city";
-import { areaOf, centroidOf, mergePieces, newRoofId, type Roof } from "@/lib/roof";
+import { areaOf, centroidOf, defaultPins, mergePieces, newRoofId, type Roof, type RoofPins } from "@/lib/roof";
 import type { Theme } from "@/lib/theme";
 
 export interface FlyTarget {
@@ -37,7 +37,32 @@ interface Props {
   raining: boolean;
   addingNeighbour: boolean;
   theme: Theme;
+  roofCheck: RoofCheckProps;
 }
+
+// The roof check view: a slow orbit around your roof (fixed camera on
+// low-end devices and for reduced motion), optional satellite imagery and
+// two draggable pins.
+export interface RoofCheckProps {
+  on: boolean;
+  satellite: boolean;
+  staticView: boolean;
+  pins: RoofPins;
+  onPinsChange: (pins: RoofPins) => void;
+  // Screen space the card and panels cover, so the roof stays in view.
+  padding: { top: number; right: number; bottom: number; left: number };
+}
+
+// Satellite: EOX Sentinel-2 cloudless, 2016 layer. Free and keyless, and the
+// 2016 layer is CC BY 4.0, which allows this use with attribution (the
+// 2017+ layers are non-commercial). Pixels are 10 m: it shows the area
+// around a roof, not roof detail. Tiles above z16 are stretched.
+const SAT_SOURCE = "rg-satellite";
+const SAT_LAYER = "rg-satellite";
+const SAT_TILES = "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg";
+export const SAT_CREDIT =
+  '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless 2016</a> by <a href="https://eox.at" target="_blank" rel="noopener">EOX IT Services GmbH</a> (contains modified Copernicus Sentinel data 2016), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>';
+const ORBIT_DEG_PER_S = 6;
 
 type Geom = Polygon | MultiPolygon;
 // A building as the map selects it: merged outline, height, and a key for
@@ -403,6 +428,7 @@ export default function MapView(props: Props) {
       lastPick = null;
       pickDirty = true;
       decorate(m, slow, MAP_THEMES[latest.current.theme]);
+      syncSatellite(m, latest.current.roofCheck.on && latest.current.roofCheck.satellite);
       ready.current = true;
       roofAnim.current.activeId = null;
       syncRoofs();
@@ -508,6 +534,7 @@ export default function MapView(props: Props) {
     m.on("click", (e) => {
       if (!ready.current) return;
       const p = latest.current;
+      if (p.roofCheck.on) return;
       if (p.mode === "draw") {
         p.onDrawPoint([e.lngLat.lng, e.lngLat.lat]);
         return;
@@ -625,6 +652,86 @@ export default function MapView(props: Props) {
   }
 
   useEffect(syncRoofs, [props.roofs, props.activeRoofId]);
+
+  // Roof check: satellite layer.
+  const rc = props.roofCheck;
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready.current) return;
+    syncSatellite(m, rc.on && rc.satellite);
+  }, [rc.on, rc.satellite]);
+
+  // Roof check: camera. Frame the roof steeply, then orbit slowly until the
+  // user takes over; low-end devices and reduced motion get a fixed view.
+  const activeRoof = props.roofs.find((r) => r.id === props.activeRoofId) ?? null;
+  const checkKey = rc.on && activeRoof ? activeRoof.id : null;
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !checkKey) return;
+    const roof = latest.current.roofs.find((r) => r.id === checkKey);
+    if (!roof) return;
+    const { staticView, padding } = latest.current.roofCheck;
+    const pose = { center: [roof.lng, roof.lat] as [number, number], zoom: 18.6, pitch: staticView ? 50 : 62, padding };
+    let raf = 0;
+    let last = 0;
+    let stopped = staticView;
+    const spin = (t: number) => {
+      if (stopped) return;
+      const dt = last ? Math.min(0.1, (t - last) / 1000) : 0;
+      last = t;
+      m.setBearing(m.getBearing() + ORBIT_DEG_PER_S * dt);
+      raf = requestAnimationFrame(spin);
+    };
+    const stop = () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
+    if (staticView) m.jumpTo({ ...pose, bearing: -20 });
+    else {
+      m.flyTo({ ...pose, bearing: m.getBearing() + 20, duration: 1600, essential: true });
+      m.once("moveend", () => {
+        if (!stopped) raf = requestAnimationFrame(spin);
+      });
+    }
+    const canvas = m.getCanvasContainer();
+    canvas.addEventListener("pointerdown", stop);
+    canvas.addEventListener("wheel", stop, { passive: true });
+    return () => {
+      stop();
+      canvas.removeEventListener("pointerdown", stop);
+      canvas.removeEventListener("wheel", stop);
+      m.easeTo({ padding: { top: 0, right: 0, bottom: 0, left: 0 }, pitch: 55, zoom: 17, duration: staticView ? 0 : 800 });
+    };
+  }, [checkKey]);
+
+  // Roof check: the two draggable pins.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !checkKey) return;
+    const roof = latest.current.roofs.find((r) => r.id === checkKey);
+    if (!roof) return;
+    const start = defaultPins(roof);
+    const current = { ...latest.current.roofCheck.pins };
+    const make = (kind: "tank" | "downpipe") => {
+      const el = document.createElement("div");
+      el.className = `rg-pin rg-pin-${kind}`;
+      el.setAttribute("role", "img");
+      el.setAttribute("aria-label", kind === "tank" ? "Tank spot pin, drag to move" : "Downpipe pin, drag to move");
+      // The teardrop is an inner element: rotating the marker itself would
+      // also rotate MapLibre's positioning transform.
+      el.innerHTML = `<span class="rg-pin-shape"><span>${kind === "tank" ? "T" : "D"}</span></span>`;
+      const at = current[kind] ?? start[kind];
+      const marker = new Marker({ element: el, draggable: true, anchor: "bottom" }).setLngLat([at.lng, at.lat]).addTo(m);
+      marker.on("dragend", () => {
+        const ll = marker.getLngLat();
+        current[kind] = { lat: ll.lat, lng: ll.lng };
+        latest.current.roofCheck.onPinsChange({ ...current });
+      });
+      return marker;
+    };
+    const markers = [make("tank"), make("downpipe")];
+    return () => markers.forEach((mk) => mk.remove());
+  }, [checkKey]);
   useEffect(syncDraw, [props.drawPoints]);
 
   useEffect(() => {
@@ -700,6 +807,22 @@ export default function MapView(props: Props) {
       </div>
     </>
   );
+}
+
+// Satellite imagery under the 3D buildings, only during the roof check.
+function syncSatellite(m: MLMap, on: boolean) {
+  if (!on) {
+    if (m.getLayer(SAT_LAYER)) m.removeLayer(SAT_LAYER);
+    if (m.getSource(SAT_SOURCE)) m.removeSource(SAT_SOURCE);
+    return;
+  }
+  if (!m.getSource(SAT_SOURCE)) {
+    m.addSource(SAT_SOURCE, { type: "raster", tiles: [SAT_TILES], tileSize: 256, maxzoom: 16, attribution: SAT_CREDIT });
+  }
+  if (!m.getLayer(SAT_LAYER)) {
+    const before = m.getLayer(BUILDING_LAYER) ? BUILDING_LAYER : m.getStyle().layers.find((l) => l.type === "fill-extrusion")?.id;
+    m.addLayer({ id: SAT_LAYER, type: "raster", source: SAT_SOURCE, paint: { "raster-opacity": 0.95, "raster-fade-duration": 200 } }, before);
+  }
 }
 
 // Everything RAIN//GRID adds on top of the base style. Runs on every style

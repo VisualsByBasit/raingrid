@@ -1,4 +1,4 @@
-import type { Roof } from "./roof";
+import type { Pin, Roof, RoofPins } from "./roof";
 import { isInAuthorizedCity } from "../config/city";
 import { ISLAMABAD_STORMS, PRESETS } from "../data/storms";
 
@@ -34,20 +34,33 @@ export function choiceFromKey(key: string | null): StormChoice | null {
 // Format: ?s=<stormId|mm:NN>&r=lat,lng,area[,1];lat,lng,area[,1]
 // A trailing ",1" marks a roof that has a Rain Plan. Links without it (all
 // links made before plans were tracked) still open, with no roofs planned.
-export function shareQuery(roofs: Roof[], storm: string): string {
+// Optional roof check pins for "Your roof": &t=lat,lng (tank spot) and
+// &d=lat,lng (downpipe).
+const pinParam = (p: Pin) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+
+export function shareQuery(roofs: Roof[], storm: string, pins?: RoofPins): string {
   const r = roofs
     .map((x) => `${x.lat.toFixed(5)},${x.lng.toFixed(5)},${Math.round(x.areaM2)}${x.planned ? ",1" : ""}`)
     .join(";");
   // Digits, dots, minus signs, commas and semicolons are safe in a query, so
   // the roof list stays readable when it is pasted into a message.
-  return `s=${encodeURIComponent(storm)}&r=${r}`;
+  let q = `s=${encodeURIComponent(storm)}&r=${r}`;
+  if (pins?.tank) q += `&t=${pinParam(pins.tank)}`;
+  if (pins?.downpipe) q += `&d=${pinParam(pins.downpipe)}`;
+  return q;
 }
 
-export function encodeShare(roofs: Roof[], storm: string): string {
-  return `${window.location.origin}${window.location.pathname}?${shareQuery(roofs, storm)}`;
+export function encodeShare(roofs: Roof[], storm: string, pins?: RoofPins): string {
+  return `${window.location.origin}${window.location.pathname}?${shareQuery(roofs, storm, pins)}`;
 }
 
-export function decodeShare(search: string): { roofs: Roof[]; storm: string | null; outOfRange: boolean } {
+function decodePin(v: string | null): Pin | null {
+  if (!v) return null;
+  const [lat, lng] = v.split(",").map(Number);
+  return Number.isFinite(lat) && Number.isFinite(lng) && isInAuthorizedCity(lat, lng) ? { lat, lng } : null;
+}
+
+export function decodeShare(search: string): { roofs: Roof[]; storm: string | null; outOfRange: boolean; pins: RoofPins } {
   const p = new URLSearchParams(search);
   const storm = p.get("s");
   const roofs: Roof[] = [];
@@ -62,5 +75,6 @@ export function decodeShare(search: string): { roofs: Roof[]; storm: string | nu
     }
     if (roofs.length >= SHARE_LIMITS.roofs) break;
   }
-  return { roofs, storm, outOfRange };
+  const pins: RoofPins = { tank: decodePin(p.get("t")), downpipe: decodePin(p.get("d")) };
+  return { roofs, storm, outOfRange, pins };
 }

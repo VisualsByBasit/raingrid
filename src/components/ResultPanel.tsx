@@ -88,6 +88,7 @@ export interface ResultPanelProps {
   onQuoteChoice: (c: QuoteChoice) => void;
   onRequestVisit: () => void;
   onBecomeInstaller: () => void;
+  onRoofCheck: () => void;
   openSources: () => void;
   roofTypes: Record<RoofType, RoofTypeSpec>;
   // Phone stepper: render only this step, without its heading (the sheet
@@ -282,6 +283,11 @@ export default function ResultPanel(p: Props) {
                 </button>
               </div>
             ))}
+            {p.active && (
+              <button onClick={p.onRoofCheck} className={`${btn} flex w-full items-center justify-center gap-2 bg-tank/5 font-medium text-tank-deep`}>
+                Roof check in 3D: mark tank and downpipe spots
+              </button>
+            )}
             {large ? (
               <div role="status" className="rounded-lg border border-drain/40 bg-drain/5 p-3 text-[13px] leading-snug text-fg">
                 <p>{largeComplexNotice(large.areaM2)}</p>
@@ -503,7 +509,10 @@ export default function ResultPanel(p: Props) {
       {show(6) && p.phase === "done" && p.result && (
         <Step n="06" title="Get it installed" bare={bare}>
           <QuoteCard result={p.result} onChoice={p.onQuoteChoice} />
-          <button onClick={p.onRequestVisit} className="btn-primary mt-4 w-full rounded-xl px-4 py-3 font-semibold">
+          <button onClick={p.onRoofCheck} className={`${btn} mt-4 w-full text-tank-deep`}>
+            Mark your tank and downpipe spots (roof check)
+          </button>
+          <button onClick={p.onRequestVisit} className="btn-primary mt-2 w-full rounded-xl px-4 py-3 font-semibold">
             Request a free site visit
           </button>
           <div className="mt-3">
