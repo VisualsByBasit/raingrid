@@ -6,6 +6,7 @@ import type { Sector } from "@/data/sectors";
 import Hero from "./landing/Hero";
 import Story from "./story/Story";
 import WhyIslamabad from "./story/WhyIslamabad";
+import HowItWorks from "./service/HowItWorks";
 
 // The landing: hero, a pinned scroll story, why Islamabad, and sources. One
 // scrollable page inside the intro overlay.
@@ -38,6 +39,7 @@ export default function Intro({
     >
       <Hero ready={ready} scroller={scroller} onStart={onStart} onSector={onSector} onSources={onSources} />
       <Story container={scroller} onFindRoof={onFindRoof} />
+      <HowItWorks variant="landing" />
       <WhyIslamabad />
       <footer className="mx-auto flex max-w-5xl flex-wrap gap-x-6 gap-y-2 px-5 pb-16 text-sm text-muted">
         <button onClick={onSources} className="underline decoration-line underline-offset-4 hover:text-tank-deep">

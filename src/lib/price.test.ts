@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PACKAGES, PARTS } from "../config/packages";
+import { MAINTENANCE, PACKAGES, PARTS } from "../config/packages";
 import { priceLabel, priceWithFlag } from "./price";
 
 describe("part prices", () => {
@@ -32,5 +32,19 @@ describe("part prices", () => {
     expect(Object.values(PACKAGES).filter((p) => p.drinking).map((p) => p.id)).toEqual(["plus"]);
     expect(PACKAGES.plus.parts).toContain("uvFilter");
     expect(PACKAGES.basic.parts).not.toContain("tank2000");
+  });
+});
+
+describe("maintenance plan", () => {
+  it("prices a visit as one plumber day plus one helper day", () => {
+    expect(MAINTENANCE.visitLowRs).toBe(2_800 + 1_538);
+    expect(MAINTENANCE.visitHighRs).toBe(3_800 + 1_538);
+  });
+
+  it("covers tank clean, filter change and water test", () => {
+    const names = MAINTENANCE.tasks.map((t) => t.name).join(" ");
+    expect(names).toContain("Tank clean");
+    expect(names).toContain("Filter change");
+    expect(names).toContain("Water test");
   });
 });

@@ -35,7 +35,9 @@ import Pledge from "./act/Pledge";
 import StreetProgressCard from "./act/StreetProgressCard";
 import SystemDiagram from "./act/SystemDiagram";
 import TankerCompare from "./act/TankerCompare";
+import HowItWorks from "./service/HowItWorks";
 import InstallersCard from "./service/InstallersCard";
+import { MaintenanceCard, WaterSafety } from "./service/Trust";
 import QuoteCard, { type QuoteChoice } from "./service/QuoteCard";
 import { GuideToggle } from "./guide/GuideContext";
 import Hint from "./guide/Hint";
@@ -508,6 +510,9 @@ export default function ResultPanel(p: Props) {
       {/* 06 Get it installed */}
       {show(6) && p.phase === "done" && p.result && (
         <Step n="06" title="Get it installed" bare={bare}>
+          <div className="mb-4">
+            <HowItWorks variant="compact" />
+          </div>
           <QuoteCard result={p.result} onChoice={p.onQuoteChoice} />
           <button onClick={p.onRoofCheck} className={`${btn} mt-4 w-full text-tank-deep`}>
             Mark your tank and downpipe spots (roof check)
@@ -517,6 +522,10 @@ export default function ResultPanel(p: Props) {
           </button>
           <div className="mt-3">
             <InstallersCard onBecomeInstaller={p.onBecomeInstaller} />
+          </div>
+          <div className="mt-3 space-y-2">
+            <MaintenanceCard />
+            <WaterSafety />
           </div>
         </Step>
       )}

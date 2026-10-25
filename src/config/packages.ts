@@ -157,3 +157,20 @@ export const RECHARGE_ADDON = {
   name: "Recharge well add-on",
   price: "quote on site visit",
 };
+
+// Yearly maintenance plan. The visit is priced from the sourced plumber and
+// helper day rates; consumables have no source yet, so they are quoted on
+// the visit rather than given a made-up number.
+export const MAINTENANCE = {
+  tasks: [
+    { name: "Tank clean", what: "Drain, scrub and rinse the tank; check the lid and the overflow mesh." },
+    { name: "Gutters, screen and first flush", what: "Clear leaves and silt so the first flush keeps working." },
+    { name: "Filter change", what: "Plus only: new cartridges and a UV lamp check, as the maker advises." },
+    { name: "Water test", what: "A basic test of the stored water, and a lab test if you drink it." },
+  ],
+  // One plumber day plus one helper day, from PARTS.
+  visitLowRs: PARTS.plumber.price!.lowRs + PARTS.helper.price!.lowRs,
+  visitHighRs: PARTS.plumber.price!.highRs + PARTS.helper.price!.highRs,
+  visitSource: "one plumber day and one helper day at Avenir Developments Q4 2026 rates",
+  separately: "Filter cartridges and a lab water test are quoted on the visit.",
+};

@@ -19,6 +19,10 @@
 3. **Follow the water.** Rain falls, litres count up, and RAIN//GRID shows where each one goes: into your tank, into the ground through a recharge well, or down the nalah. Recharge is shown as potential routing, not measured infiltration.
 4. **Get your Rain Plan, then bring your street.** Add your neighbours' roofs and share one street link.
 
+## RainGrid as a service (Zindigi demo)
+
+After the Rain Plan, step 06 recommends a package (Basic, Standard or Plus) and a tank size, prices it line by line from sourced parts, and shows indicative 6 and 12 month instalments via Zindigi. A 3D roof check lets you mark where a tank and downpipe would go, and a free site visit request goes out over WhatsApp. It runs in demo mode until the team number is set: see [docs/zindigi-demo.md](docs/zindigi-demo.md).
+
 ## Highlights
 
 - **A living 3D Islamabad hero.** One WebGL scene brings a photo plate of the Margalla Hills to life with depth parallax, rolling monsoon clouds, mist, sun shafts, GPU rain and a shimmering wet street. A crystal droplet hangs in front of it, refracting the city behind it and rippling when you touch it.
@@ -40,6 +44,8 @@ npm run data:footprints # rebuild the static OSM footprints (currently unused by
 
 No API keys needed. Everything runs on free, keyless services.
 
+Optional: set `NEXT_PUBLIC_CONTACT_WHATSAPP` (the team's WhatsApp number) to take the site visit and installer forms out of demo mode. It is read at build time.
+
 ## Project layout
 
 | Path | What |
@@ -55,7 +61,11 @@ No API keys needed. Everything runs on free, keyless services.
 | `scripts/extract-footprints.mjs` | Builds `public/data/footprints/islamabad-demo.geojson` (static OSM footprints for E-11, F-10, F-7, G-11, H-8 and Satellite Town, Rawalpindi). Kept in the repo but **not used by the map**: static footprints drew on top of the live buildings, so the map now uses live buildings only, with draw and type-area as the fallback |
 | `scripts/copy-maplibre-worker.mjs` | Copies MapLibre's worker into `public/` (runs before dev and build) |
 | `docs/scope-decisions.md` | Explicit feature cuts and their honesty rationale |
+| `src/config/packages.ts` | Service packages, parts, prices and sources, and the maintenance plan |
+| `src/config/tankers.ts` | Tanker prices and the assumed tanker size for the comparison |
 | `docs/qa/2026-09-27.md` | Desktop, mobile and production-link QA record |
+| `docs/qa/2026-10-25-performance.md` | Phone performance pass, before and after |
+| `docs/zindigi-demo.md` | Demo mode and what to fill in before going live |
 
 ## The formula
 
@@ -68,6 +78,9 @@ harvest = roof area × usable share × (rain − first flush) × runoff coeffici
 ## Credits
 
 - Map tiles: [OpenFreeMap](https://openfreemap.org), data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
+- Satellite (roof check): [Sentinel-2 cloudless 2016](https://s2maps.eu) by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0
+- Weather: [Open-Meteo](https://open-meteo.com) (CC BY 4.0)
+- Prices: watertank.pk (tanks, 2026), Avenir Developments (plumbing labour and UPVC pipe, Q4 2026), aquafilter.pk (UV filter); tanker prices from APP and Dawn. Links in the app's sources drawer
 - Map engine: [MapLibre GL JS](https://maplibre.org). Geometry: [Turf.js](https://turfjs.org)
 - 3D: [three.js](https://threejs.org), [React Three Fiber](https://r3f.docs.pmnd.rs), [drei](https://github.com/pmndrs/drei), [postprocessing](https://github.com/pmndrs/postprocessing) (via React Postprocessing) and [simplex-noise](https://github.com/jwagner/simplex-noise.js)
 - Imagery: the Islamabad background plate and the logo were generated with ChatGPT image generation, edited by Mayaar OS. The plate's depth map is hand-tuned, not measured terrain

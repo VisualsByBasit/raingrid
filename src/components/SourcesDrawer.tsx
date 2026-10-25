@@ -6,7 +6,7 @@ import { DEFAULTS, ENGINE_SOURCES, ROOF_TYPES } from "@/lib/engine";
 import { ANNUAL_NORMAL_MM, GAUGES, MONSOON_NORMAL_MM, MONTHLY_NORMALS, NORMALS_SOURCE, PRESETS, STORMS } from "@/data/storms";
 import { FOOTAGE } from "./landing/footage";
 import { TANKER_PRESETS, TANKER_SIZE } from "@/config/tankers";
-import { ESTIMATE_LABEL, PARTS } from "@/config/packages";
+import { ESTIMATE_LABEL, MAINTENANCE, PARTS } from "@/config/packages";
 import { priceLabel } from "@/lib/price";
 
 const WETTEST_MONTH_MM = Math.max(...MONTHLY_NORMALS.map((m) => m.mm));
@@ -135,6 +135,15 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
             </li>
           ))}
           <li>Pipe length and labour days in a quote are estimates, confirmed on site visit.</li>
+          <li>
+            Yearly maintenance visit: Rs {MAINTENANCE.visitLowRs.toLocaleString("en-US")} to{" "}
+            {MAINTENANCE.visitHighRs.toLocaleString("en-US")}, {MAINTENANCE.visitSource} ({ESTIMATE_LABEL}).{" "}
+            {MAINTENANCE.separately}
+          </li>
+          <li>
+            Instalments are the quote range split evenly over 6 or 12 months, before any financing charges. They are
+            indicative; Zindigi sets the actual terms.
+          </li>
         </ul>
 
         <h3 className="mt-6 font-semibold">Tanker comparison (estimate)</h3>
