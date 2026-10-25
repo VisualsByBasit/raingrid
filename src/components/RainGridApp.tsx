@@ -11,7 +11,8 @@ import { inviteMessage, streetProgress, whatsappShareUrl } from "@/lib/invite";
 import { measuredAt } from "@/lib/explain";
 import { NO_PINS, areaOf, centroidOf, newRoofId, type Roof, type RoofPins } from "@/lib/roof";
 import { detectSceneMode } from "./three/sceneMode";
-import { choiceFromKey, choiceKey, decodeShare, encodeShare, type StormChoice } from "@/lib/share";
+import { reportFromSearch, type ReportTab } from "@/lib/report";
+import { choiceFromKey, choiceKey, decodeShare, encodeShare, shareQuery, type StormChoice } from "@/lib/share";
 import type { FlyTarget } from "./MapView";
 import RainCanvas from "./RainCanvas";
 import Intro from "./Intro";
@@ -31,6 +32,10 @@ import { GuideProvider, markTourSeen, tourSeen } from "./guide/GuideContext";
 import Tour from "./guide/Tour";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
+// The Rain Report loads only when it is needed (and is warmed up as soon as
+// a replay finishes), so it never weighs on the map.
+const loadReport = () => import("./report/RainReport");
+const RainReport = dynamic(loadReport, { ssr: false });
 
 export interface Setup {
   roofType: RoofType;
@@ -111,7 +116,14 @@ function RainGrid() {
     tankLitres: DEFAULTS.tankLitres,
     hasRecharge: DEFAULTS.hasRecharge,
   });
-  const [phase, setPhase] = useState<Phase>("idle");
+  // A link with &view=report opens the Rain Report for its first roof,
+  // with the result ready (no replay needed).
+  const deepReport = shared.roofs.length > 0 ? shared.report : null;
+  const [phase, setPhase] = useState<Phase>(deepReport ? "done" : "idle");
+  const [report, setReport] = useState<ReportTab | null>(deepReport);
+  // Set when the Report sends the user to the map (roof check, adding
+  // neighbours), so it can bring them back.
+  const [reportReturn, setReportReturn] = useState<"roofCheck" | "neighbours" | null>(null);
   const [mapError, setMapError] = useState(false);
   const [query, setQuery] = useState("");
   const [typedArea, setTypedArea] = useState("");
@@ -213,9 +225,10 @@ function RainGrid() {
         setPins(NO_PINS);
         return [{ ...roof, label: "Your roof" }];
       });
-      setPhase("idle");
+      // Adding a neighbour keeps your own roof's result.
+      if (!(addingNeighbour && !joining && roofs.length > 0)) setPhase("idle");
     },
-    [addingNeighbour, joining],
+    [addingNeighbour, joining, roofs.length],
   );
 
   // From the landing, the map enters with a cinematic flight; from the map's
@@ -303,14 +316,52 @@ function RainGrid() {
     window.open(whatsappShareUrl(text), "_blank", "noopener,noreferrer");
   };
 
-  const share = async () => {
-    const url = encodeShare(roofs, choiceKey(choice), pins);
+  const copy = async (url: string, done: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      setToast("Street link copied. Send it to your neighbours.");
+      setToast(done);
     } catch {
       window.prompt("Copy this link", url);
     }
+  };
+  const share = () => copy(encodeShare(roofs, choiceKey(choice), pins), "Street link copied. Send it to your neighbours.");
+
+  // The Report's address is a real deep link (the share query plus
+  // &view=report&tab=...). Opening it adds a history entry, so the back
+  // button closes it; changing section replaces the entry.
+  const reportUrl = (tab: ReportTab) => `${window.location.pathname}?${shareQuery(roofs, choiceKey(choice), pins, tab)}`;
+  const openReport = (tab: ReportTab = "overview") => {
+    setReport(tab);
+    window.history.pushState({ rgReport: true }, "", reportUrl(tab));
+  };
+  const setReportTab = (tab: ReportTab) => {
+    setReport(tab);
+    window.history.replaceState(window.history.state, "", reportUrl(tab));
+  };
+  const closeReport = useCallback(() => {
+    if (window.history.state?.rgReport) {
+      // popstate (below) closes it.
+      window.history.back();
+      return;
+    }
+    // Opened from a link: drop the Report part of the address.
+    setReport(null);
+    const search = window.location.search.replace(/[?&]view=report(&tab=[a-z]+)?/, "").replace(/^&/, "?");
+    window.history.replaceState(null, "", window.location.pathname + search);
+  }, []);
+  useEffect(() => {
+    const onPop = () => setReport(reportFromSearch(window.location.search));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    if (phase === "done") void loadReport();
+  }, [phase]);
+  const copyReportLink = () =>
+    copy(encodeShare(roofs, choiceKey(choice), pins, report), "Report link copied. It includes your roof's location.");
+  const backToReport = (tab: ReportTab) => {
+    setReportReturn(null);
+    openReport(tab);
   };
 
   const panelProps: ResultPanelProps = {
@@ -348,15 +399,8 @@ function RainGrid() {
     result,
     phase,
     replay,
-    street,
-    addingNeighbour,
-    setAddingNeighbour,
-    share,
-    invite,
+    openReport: () => openReport("overview"),
     joining,
-    onQuoteChoice,
-    onRequestVisit: () => setVisitOpen(true),
-    onBecomeInstaller: () => setInstallerOpen(true),
     onRoofCheck: () => setRoofCheck(true),
     openSources: () => setShowSources(true),
     roofTypes: ROOF_TYPES,
@@ -365,8 +409,17 @@ function RainGrid() {
   const intensity =
     // The landing draws its own rain, so the map's rain rests behind it.
     // Desktop keeps a light drizzle between replays; phones stop the rain
-    // canvas entirely until a storm is replayed.
-    phase === "raining" ? Math.min(1, 0.35 + rain.mm / 200) : intro || isPhone ? 0 : phase === "done" ? 0.05 : 0.08;
+    // canvas entirely until a storm is replayed. The Rain Report covers the
+    // map, so the rain stops while it is open.
+    report
+      ? 0
+      : phase === "raining"
+        ? Math.min(1, 0.35 + rain.mm / 200)
+        : intro || isPhone
+          ? 0
+          : phase === "done"
+            ? 0.05
+            : 0.08;
   const suggestions = searchSectors(query);
 
   return (
@@ -494,6 +547,20 @@ function RainGrid() {
         </div>
       )}
 
+      {reportReturn === "neighbours" && !intro && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(var(--sheet-h,0px)+16px)] z-30 flex justify-center md:bottom-6 md:right-[416px]">
+          <button
+            onClick={() => {
+              setAddingNeighbour(false);
+              backToReport("street");
+            }}
+            className="btn-primary pointer-events-auto rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg"
+          >
+            Done: back to my Rain Report
+          </button>
+        </div>
+      )}
+
       {/* Side panel (desktop) / step-by-step bottom sheet (phones) */}
       {/* Roof check card: left on desktop, in place of the sheet on phones. */}
       <AnimatePresence>
@@ -511,7 +578,10 @@ function RainGrid() {
               setSatellite={setSatellite}
               pins={pins}
               staticView={staticRoofCheck}
-              onClose={() => setRoofCheck(false)}
+              onClose={() => {
+                setRoofCheck(false);
+                if (reportReturn === "roofCheck") backToReport("install");
+              }}
             />
           </div>
         )}
@@ -539,6 +609,38 @@ function RainGrid() {
               setFocusSearch(true);
               enterCity();
             }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {report && active && result && (
+          <RainReport
+            tab={report}
+            setTab={setReportTab}
+            onClose={closeReport}
+            roof={active}
+            roofs={roofs}
+            rain={rain}
+            result={result}
+            street={street}
+            onQuoteChoice={onQuoteChoice}
+            onRequestVisit={() => setVisitOpen(true)}
+            onBecomeInstaller={() => setInstallerOpen(true)}
+            onRoofCheck={() => {
+              closeReport();
+              setReportReturn("roofCheck");
+              setRoofCheck(true);
+            }}
+            onAddNeighbours={() => {
+              closeReport();
+              setReportReturn("neighbours");
+              setAddingNeighbour(true);
+            }}
+            share={share}
+            invite={invite}
+            copyReportLink={copyReportLink}
+            openSources={() => setShowSources(true)}
           />
         )}
       </AnimatePresence>
@@ -575,7 +677,7 @@ function RainGrid() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass absolute bottom-[calc(var(--sheet-h,0px)+12px)] left-1/2 z-40 -translate-x-1/2 rounded-full px-4 py-2 text-sm md:bottom-6"
+            className="glass fixed bottom-[calc(var(--sheet-h,0px)+12px)] left-1/2 z-[55] -translate-x-1/2 rounded-full px-4 py-2 text-sm md:bottom-6"
             role="status"
           >
             {toast}

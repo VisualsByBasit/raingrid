@@ -23,8 +23,6 @@ const STEPS: { n: StepNo; title: string }[] = [
   { n: 2, title: "Pick a storm" },
   { n: 3, title: "Your setup" },
   { n: 4, title: "Replay it" },
-  { n: 5, title: "Your street" },
-  { n: 6, title: "Get it installed" },
 ];
 
 function snapPx(snap: Snap): number {
@@ -48,7 +46,6 @@ export default function PhoneSheet({ panel, stormPicked, onStormPicked }: { pane
     if (n === 1) return null;
     if (!hasRoof) return "Pick a roof first";
     if (n === 4 && !stormPicked) return "Pick a storm first";
-    if (n >= 5 && panel.phase !== "done") return "Replay the storm first";
     return null;
   };
 
@@ -301,9 +298,8 @@ function NextButton({
     1: panel.active ? { to: 2, label: "Next: pick a storm" } : null,
     2: panel.active ? { to: 3, label: "Next: your setup" } : null,
     3: panel.active ? { to: 4, label: "Next: replay it" } : null,
-    4: panel.phase === "done" ? { to: 5, label: "Next: your street" } : null,
-    5: panel.phase === "done" ? { to: 6, label: "Next: get it installed" } : null,
-    6: null,
+    // After the replay, the result card's own button opens the Rain Report.
+    4: null,
   };
   const n = next[step];
   // Step 2 -> 3 also confirms the storm, so it is never blocked by it.
@@ -328,12 +324,8 @@ function KeyLine({ panel, step, blockedHint }: { panel: ResultPanelProps; step: 
     text = `${panel.rain.mm.toLocaleString("en-US")} mm · ${panel.rain.label}`;
   } else if (step === 3) {
     text = `${panel.setup.tankLitres.toLocaleString("en-US")} L tank · ${panel.setup.hasRecharge ? "recharge well" : "no recharge well"}`;
-  } else if (step === 4) {
-    text = panel.result && panel.phase === "done" ? `${formatL(roundL(panel.result.gross))} landed on this roof` : "Ready to replay the storm";
-  } else if (step === 5) {
-    text = panel.street ? `${panel.street.count} roofs · ${formatL(panel.street.tank)} stored` : "Add your neighbours' roofs";
   } else {
-    text = "Package, price and a free site visit";
+    text = panel.result && panel.phase === "done" ? `${formatL(roundL(panel.result.net.mid))} you can collect` : "Ready to replay the storm";
   }
   return (
     <p className="truncate px-2 pb-1 text-center text-xs text-muted" aria-live="polite">

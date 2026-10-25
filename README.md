@@ -16,12 +16,12 @@
 
 1. **Pick your roof on a 3D map.** Search your sector (F-7, G-11...) and tap your house. The area comes from its OpenStreetMap building outline, live from OpenFreeMap vector tiles. If your roof isn't mapped, draw it or type the area.
 2. **Replay a real storm.** Choose a recorded Islamabad storm; your roof gets the reading from the nearest rain gauge that reported it.
-3. **Follow the water.** Rain falls, litres count up, and RAIN//GRID shows where each one goes: into your tank, into the ground through a recharge well, or down the nalah. Recharge is shown as potential routing, not measured infiltration.
-4. **Get your Rain Plan, then bring your street.** Add your neighbours' roofs and share one street link.
+3. **See what you can collect.** Rain falls on your roof, litres count up, and one card settles on what your roof can collect and how much overflowed your tank.
+4. **Open your Rain Report.** A full-screen report, in sections: Overview, Water (where each litre goes: your tank, a recharge well or down the nalah; recharge is potential routing, not measured infiltration), Money, Street (bring your neighbours, share one street link) and Get it installed. A link can open the Report directly on any section (`&view=report&tab=money`).
 
 ## RainGrid as a service (Zindigi demo)
 
-After the Rain Plan, step 06 recommends a package (Basic, Standard or Plus) and a tank size, prices it line by line from sourced parts, and shows indicative 6 and 12 month instalments via Zindigi. A 3D roof check lets you mark where a tank and downpipe would go, and a free site visit request goes out over WhatsApp. It runs in demo mode until the team number is set: see [docs/zindigi-demo.md](docs/zindigi-demo.md).
+In the Rain Report, "Get it installed" recommends a package (Basic, Standard or Plus) with one 2,000 L tank (two on roofs over 400 m²) and a recharge well for the overflow, with more tanks as an option, prices it line by line from sourced parts, and shows indicative 6 and 12 month instalments via Zindigi. A 3D roof check lets you mark where a tank and downpipe would go, and a free site visit request goes out over WhatsApp. It runs in demo mode until the team number is set: see [docs/zindigi-demo.md](docs/zindigi-demo.md).
 
 ## Highlights
 
@@ -55,6 +55,7 @@ Optional: set `NEXT_PUBLIC_CONTACT_WHATSAPP` (the team's WhatsApp number) to tak
 | `src/data/sectors.ts` | Islamabad sector search (approximate centres) |
 | `src/config/city.ts` | Everything city-specific |
 | `src/components/` | Map, rain canvas, panels, landing, loader and guided tour |
+| `src/components/report/` | The Rain Report overlay and its sections (lazy-loaded) |
 | `src/components/three/` | The hero's WebGL scene: living plate shader, GPU rain, refracting droplet, fallback detection |
 | `scripts/build-hero-assets.mjs` | Compresses the Islamabad plate and builds its hand-tuned depth map and effect masks |
 | `scripts/build-logo.mjs` | Builds the favicon, the Apple touch icon, the transparent README logo and the header mark from the logo art |

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isInAuthorizedCity } from "../config/city";
 import { ALL_SECTORS } from "../data/sectors";
+import { REPORT_TABS, reportFromSearch, reportQuery } from "./report";
 import { SHARE_LIMITS, choiceFromKey, decodeShare, shareQuery } from "./share";
 
 describe("shared links", () => {
@@ -50,5 +51,31 @@ describe("shared links", () => {
   it("limits shared streets to 12 roofs", () => {
     const roofs = Array.from({ length: 20 }, (_, i) => `33.70,73.05,${100 + i}`).join(";");
     expect(decodeShare(`?r=${roofs}`).roofs).toHaveLength(SHARE_LIMITS.roofs);
+  });
+});
+
+describe("Rain Report deep links", () => {
+  it("opens the Report on the section the link names", () => {
+    expect(reportFromSearch("?s=2025-07-21&r=33.69,73.04,250&view=report&tab=money")).toBe("money");
+    expect(decodeShare("?s=2025-07-21&r=33.69,73.04,250&view=report&tab=water").report).toBe("water");
+  });
+
+  it("falls back to the Overview for a missing or unknown section", () => {
+    expect(reportFromSearch("?view=report")).toBe("overview");
+    expect(reportFromSearch("?view=report&tab=nope")).toBe("overview");
+  });
+
+  it("leaves the Report closed without view=report", () => {
+    expect(reportFromSearch("?s=2025-07-21&r=33.69,73.04,250")).toBeNull();
+    expect(reportFromSearch("?view=map&tab=money")).toBeNull();
+  });
+
+  it("round-trips through a share query", () => {
+    const roofs = decodeShare("?r=33.69,73.04,250").roofs;
+    const q = shareQuery(roofs, "2025-07-21", undefined, "street");
+    expect(q).toContain("&view=report&tab=street");
+    expect(decodeShare(`?${q}`).report).toBe("street");
+    expect(shareQuery(roofs, "2025-07-21")).not.toContain("view=");
+    expect(REPORT_TABS.every((t) => reportFromSearch(`?${reportQuery(t).slice(1)}`) === t)).toBe(true);
   });
 });

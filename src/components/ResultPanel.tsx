@@ -1,60 +1,24 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { GAUGES, ISLAMABAD_STORMS, PRESETS, nearestReading } from "@/data/storms";
-import {
-  formatL,
-  formatRange,
-  mmToFillTank,
-  roundL,
-  roundSplitForDisplay,
-  tankWhatIf,
-  type RainResult,
-  type RoofType,
-  type RoofTypeSpec,
-} from "@/lib/engine";
-import {
-  GAUGE_CONFIDENCE_LABEL,
-  depthLine,
-  gaugeConfidence,
-  gaugeConfidenceNote,
-  gaugeLabel,
-  isLargeComplex,
-  largeComplexNotice,
-  measuredAt,
-  mmExplainer,
-  roofDisplayLabel,
-  tanksLine,
-} from "@/lib/explain";
+import { formatL, roundL, tankWhatIf, type RainResult, type RoofType, type RoofTypeSpec } from "@/lib/engine";
+import { gaugeLabel, isLargeComplex, largeComplexNotice, measuredAt, roofDisplayLabel, tanksLine } from "@/lib/explain";
 import type { Roof } from "@/lib/roof";
 import type { StormChoice } from "@/lib/share";
 import { useCountUp } from "@/lib/useCountUp";
 import type { Setup } from "./RainGridApp";
-import Pledge from "./act/Pledge";
-import StreetProgressCard from "./act/StreetProgressCard";
-import SystemDiagram from "./act/SystemDiagram";
-import TankerCompare from "./act/TankerCompare";
-import HowItWorks from "./service/HowItWorks";
-import InstallersCard from "./service/InstallersCard";
-import { MaintenanceCard, WaterSafety } from "./service/Trust";
-import QuoteCard, { type QuoteChoice } from "./service/QuoteCard";
+import { RECHARGE_SUITABILITY, RainLine, TankIcon } from "./RainBits";
 import { GuideToggle } from "./guide/GuideContext";
 import Hint from "./guide/Hint";
 
-interface Street {
-  gross: number;
-  tank: number;
-  rechargePotential: number;
-  drain: number;
-  lost: number;
-  netLow: number;
-  netHigh: number;
-  count: number;
-  potentialWithWells: number;
-}
+// The side panel (and, one step at a time, the phone sheet): only what it
+// takes to get a result. Everything after the replay lives in the Rain
+// Report (src/components/report).
 
-export type StepNo = 1 | 2 | 3 | 4 | 5 | 6;
+export type StepNo = 1 | 2 | 3 | 4;
 
 export interface ResultPanelProps {
   roofs: Roof[];
@@ -78,18 +42,9 @@ export interface ResultPanelProps {
   result: RainResult | null;
   phase: "idle" | "raining" | "done";
   replay: () => void;
-  street: Street | null;
-  addingNeighbour: boolean;
-  setAddingNeighbour: (v: boolean) => void;
-  share: () => void;
-  // WhatsApp invite with the street link and progress.
-  invite: () => void;
+  openReport: () => void;
   // Opened from a street link and the visitor hasn't added their roof yet.
   joining: boolean;
-  // Phase 1 service flow.
-  onQuoteChoice: (c: QuoteChoice) => void;
-  onRequestVisit: () => void;
-  onBecomeInstaller: () => void;
   onRoofCheck: () => void;
   openSources: () => void;
   roofTypes: Record<RoofType, RoofTypeSpec>;
@@ -128,54 +83,6 @@ const Step = ({
 
 const btn = "rounded-lg border border-line px-3 py-2 text-sm transition hover:border-tank/60 hover:text-fg";
 
-const CONFIDENCE_STYLE = {
-  good: "bg-ground/10 text-ground-deep",
-  fair: "bg-tank/10 text-tank-deep",
-  low: "bg-drain/10 text-drain-deep",
-} as const;
-
-// "Good match (?)": how well the nearest gauge stands in for this roof.
-function GaugeBadge({ km }: { km: number }) {
-  const level = gaugeConfidence(km);
-  return (
-    <span className="ml-1 inline-flex items-center whitespace-nowrap align-middle">
-      <span className={`rounded-full px-1.5 py-px text-[11px] font-medium ${CONFIDENCE_STYLE[level]}`}>
-        {GAUGE_CONFIDENCE_LABEL[level]}
-      </span>
-      <Hint text={gaugeConfidenceNote(km)} label="How good is this gauge for my roof?" />
-    </span>
-  );
-}
-
-// "157 mm (?) of rain · measured at Saidpur gauge, 3 km from your roof [Fair match]"
-function RainLine({ mm, where, km, className = "" }: { mm: number; where: string; km?: number; className?: string }) {
-  return (
-    <p className={className}>
-      <span className="num font-semibold text-tank-deep">{mm.toLocaleString("en-US")} mm</span>
-      <Hint text={mmExplainer(mm)} label="What does mm of rain mean?" />{" "}
-      of rain · {where}
-      {km != null && <GaugeBadge km={km} />}
-    </p>
-  );
-}
-
-// Recharge depends on the ground under the plot, which no map can show.
-const RECHARGE_SUITABILITY =
-  "Recharge suitability depends on your soil and the depth to groundwater, so it is checked on the site visit. RAIN//GRID shows water routed toward a well, never measured infiltration.";
-
-// One line of "Your setup": label, value and a "?" explanation.
-function SetupRow({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted">
-        {label}
-        <Hint text={hint} label={`About ${label.toLowerCase()}`} />
-      </dt>
-      <dd className="num text-right text-fg">{value}</dd>
-    </div>
-  );
-}
-
 const SETUP_HINTS = {
   tank: "The water tank your house has. One 2,000 L tank is common. Change it to match yours.",
   recharge: "A filtered pit that sends overflow into the ground instead of the drain.",
@@ -183,15 +90,26 @@ const SETUP_HINTS = {
   share: "Part of the roof lost to the water tank, stair room and parapets.",
 };
 
+// Short roof names for the one-line setup summary.
+const ROOF_SHORT: Record<RoofType, string> = { rcc: "RCC roof", metal: "Metal roof", other: "Other roof" };
+
 export default function ResultPanel(p: Props) {
-  const [showSetup, setShowSetup] = useState(false);
   const [customMm, setCustomMm] = useState("");
+  // Where the setup editor opens (null: closed), measured on click.
+  const [editing, setEditing] = useState<{ place: Place | null } | null>(null);
   const lat = p.active?.lat;
   const lng = p.active?.lng;
 
   const large = p.active && isLargeComplex(p.active.areaM2, p.active.source) ? p.active : null;
   const bare = p.only !== undefined;
   const show = (n: StepNo) => p.only === undefined || p.only === n;
+  const setup = p.setup;
+  const summary = [
+    ROOF_SHORT[setup.roofType],
+    `${Math.round(setup.usableShare * 100)}% usable`,
+    setup.tankLitres > 0 ? `${setup.tankLitres.toLocaleString("en-US")} L tank` : "no tank",
+    setup.hasRecharge ? "recharge well" : "no well",
+  ].join(" · ");
 
   return (
     <div className="text-sm">
@@ -339,9 +257,12 @@ export default function ResultPanel(p: Props) {
                 />
                 <span className="block font-medium">{s.dateLabel}</span>
                 <RainLine mm={mm} where={where} km={r?.km} className="mt-0.5 text-[13px] text-fg" />
-                <span className="mt-0.5 block text-xs text-muted">
-                  {s.title}. {s.blurb}
-                </span>
+                {/* The story behind a storm only for the one picked, to keep the panel short. */}
+                {selected && (
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {s.title}. {s.blurb}
+                  </span>
+                )}
               </label>
             );
           })}
@@ -385,80 +306,82 @@ export default function ResultPanel(p: Props) {
       </Step>
       )}
 
-      {/* 03 Setup */}
+      {/* 03 Setup: one line, edited in a popover */}
       {show(3) && (
       <Step n="03" title="Your setup" bare={bare}>
-        <TankControl p={p} />
-        <div className="mt-4">
-          <p className="text-xs text-muted">
-            Roof surface
-            <Hint text={SETUP_HINTS.roof} label="About roof type" />
-          </p>
-          <div className="mt-1.5 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Roof surface">
-            {(Object.keys(p.roofTypes) as RoofType[]).map((k) => (
-              <button
-                key={k}
-                role="radio"
-                aria-checked={p.setup.roofType === k}
-                onClick={() => p.setSetup({ ...p.setup, roofType: k })}
-                className={`${btn} px-2 text-xs leading-tight ${p.setup.roofType === k ? "border-tank/70 bg-tank/10 text-fg" : ""}`}
-              >
-                {p.roofTypes[k].label}
-              </button>
-            ))}
-          </div>
-          <p className="num mt-1 text-[11px] text-muted">
-            Runoff coefficient {p.roofTypes[p.setup.roofType].low} to {p.roofTypes[p.setup.roofType].high}
-          </p>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5">
+          <p className="num min-w-0 text-[13px] leading-snug text-fg">{summary}</p>
+          <button
+            onClick={(e) => setEditing({ place: popoverPlace(e.currentTarget) })}
+            aria-haspopup="dialog"
+            aria-expanded={editing !== null}
+            className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-tank-deep underline underline-offset-4 hover:bg-tank/10"
+          >
+            Edit
+          </button>
         </div>
-        <dl className="mt-4 space-y-1.5">
-          <SetupRow label="Recharge well" value={p.setup.hasRecharge ? "Yes" : "No"} hint={SETUP_HINTS.recharge} />
-          <SetupRow label="Usable share" value={`${Math.round(p.setup.usableShare * 100)}%`} hint={SETUP_HINTS.share} />
-        </dl>
-        <button
-          onClick={() => setShowSetup((v) => !v)}
-          aria-expanded={showSetup}
-          className="mt-2 text-xs text-tank-deep underline underline-offset-4"
-        >
-          {showSetup ? "Hide" : "Edit recharge and usable share"}
-        </button>
-        <AnimatePresence initial={false}>
-          {showSetup && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-              <div className="mt-3 space-y-3">
-                <label className="flex items-center justify-between gap-3">
-                  <span>
-                    <span className="block">Recharge well</span>
-                    <span className="text-xs text-muted">{RECHARGE_SUITABILITY}</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={p.setup.hasRecharge}
-                    onChange={(e) => p.setSetup({ ...p.setup, hasRecharge: e.target.checked })}
-                    className="h-5 w-5 accent-[var(--color-ground)]"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-xs text-muted">
-                    Share of roof that drains to your pipes: <span className="num text-fg">{Math.round(p.setup.usableShare * 100)}%</span>
-                  </span>
-                  <input
-                    type="range"
-                    min={50}
-                    max={100}
-                    value={Math.round(p.setup.usableShare * 100)}
-                    onChange={(e) => p.setSetup({ ...p.setup, usableShare: Number(e.target.value) / 100 })}
-                    className="mt-1 w-full"
-                  />
-                </label>
+        <AnimatePresence>
+          {editing && (
+            <SetupPopover place={editing.place} onClose={() => setEditing(null)}>
+              <TankControl p={p} />
+              <div>
+                <p className="text-xs text-muted">
+                  Roof surface
+                  <Hint text={SETUP_HINTS.roof} label="About roof type" />
+                </p>
+                <div className="mt-1.5 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Roof surface">
+                  {(Object.keys(p.roofTypes) as RoofType[]).map((k) => (
+                    <button
+                      key={k}
+                      role="radio"
+                      aria-checked={setup.roofType === k}
+                      onClick={() => p.setSetup({ ...setup, roofType: k })}
+                      className={`${btn} px-2 text-xs leading-tight ${setup.roofType === k ? "border-tank/70 bg-tank/10 text-fg" : ""}`}
+                    >
+                      {p.roofTypes[k].label}
+                    </button>
+                  ))}
+                </div>
+                <p className="num mt-1 text-[11px] text-muted">
+                  Runoff coefficient {p.roofTypes[setup.roofType].low} to {p.roofTypes[setup.roofType].high}
+                </p>
               </div>
-            </motion.div>
+              <label className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="block">
+                    Recharge well
+                    <Hint text={SETUP_HINTS.recharge} label="About recharge well" />
+                  </span>
+                  <span className="text-xs text-muted">{RECHARGE_SUITABILITY}</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={setup.hasRecharge}
+                  onChange={(e) => p.setSetup({ ...setup, hasRecharge: e.target.checked })}
+                  className="h-5 w-5 shrink-0 accent-[var(--color-ground)]"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs text-muted">
+                  Share of roof that drains to your pipes: <span className="num text-fg">{Math.round(setup.usableShare * 100)}%</span>
+                  <Hint text={SETUP_HINTS.share} label="About usable share" />
+                </span>
+                <input
+                  type="range"
+                  min={50}
+                  max={100}
+                  value={Math.round(setup.usableShare * 100)}
+                  onChange={(e) => p.setSetup({ ...setup, usableShare: Number(e.target.value) / 100 })}
+                  className="mt-1 w-full"
+                />
+              </label>
+            </SetupPopover>
           )}
         </AnimatePresence>
       </Step>
       )}
 
-      {/* 04 Replay + result */}
+      {/* 04 Replay + one result card */}
       {show(4) && (
       <Step n="04" title="Replay it" tour="replay" bare={bare}>
         {!p.active || !p.result ? (
@@ -476,61 +399,10 @@ export default function ResultPanel(p: Props) {
                   ? "Replay again"
                   : `Replay ${p.rain.mm} mm on my roof`}
             </button>
-            <Result result={p.result} phase={p.phase} rain={p.rain} autoScroll={!bare} onSiteVisit={p.onRequestVisit} />
+            <ResultCard result={p.result} phase={p.phase} autoScroll={!bare} onOpen={p.openReport} />
           </>
         )}
       </Step>
-      )}
-
-      {/* 05 Street */}
-      {show(5) && p.phase === "done" && p.active && (
-        <Step n="05" title="Bring your street" bare={bare}>
-          <p className="text-muted">
-            One roof is a tank. A street of roofs keeps water out of the nalah when it floods. Add your neighbours&apos;
-            roofs to see it.
-          </p>
-          <button
-            onClick={() => p.setAddingNeighbour(!p.addingNeighbour)}
-            className={`${btn} mt-3 w-full ${p.addingNeighbour ? "border-tank/70 bg-tank/10 text-tank" : ""}`}
-          >
-            {p.addingNeighbour ? "Done adding neighbours" : "+ Add neighbours' roofs"}
-          </button>
-          <div className="mt-3">
-            <StreetProgressCard roofs={p.roofs} onInvite={p.invite} />
-          </div>
-          {p.street && <StreetTotals street={p.street} />}
-          {p.roofs.length > 0 && (
-            <>
-              <button onClick={p.share} className={`${btn} mt-2 w-full`}>
-                Copy street link
-              </button>
-              <p className="mt-1 text-center text-[11px] text-muted">This link includes your roof&apos;s location.</p>
-            </>
-          )}
-        </Step>
-      )}
-
-      {/* 06 Get it installed */}
-      {show(6) && p.phase === "done" && p.result && (
-        <Step n="06" title="Get it installed" bare={bare}>
-          <div className="mb-4">
-            <HowItWorks variant="compact" />
-          </div>
-          <QuoteCard result={p.result} onChoice={p.onQuoteChoice} />
-          <button onClick={p.onRoofCheck} className={`${btn} mt-4 w-full text-tank-deep`}>
-            Mark your tank and downpipe spots (roof check)
-          </button>
-          <button onClick={p.onRequestVisit} className="btn-primary mt-2 w-full rounded-xl px-4 py-3 font-semibold">
-            Request a free site visit
-          </button>
-          <div className="mt-3">
-            <InstallersCard onBecomeInstaller={p.onBecomeInstaller} />
-          </div>
-          <div className="mt-3 space-y-2">
-            <MaintenanceCard />
-            <WaterSafety />
-          </div>
-        </Step>
       )}
 
       {!bare && (
@@ -542,191 +414,138 @@ export default function ResultPanel(p: Props) {
   );
 }
 
-function Result({
+// After the replay: what you can collect, a tank icon, one plain line, the
+// overflow, and the way into the Rain Report. While it rains, the number
+// counts the rain landing on the roof; then it settles on what you can
+// collect.
+function ResultCard({
   result,
   phase,
-  rain,
   autoScroll,
-  onSiteVisit,
+  onOpen,
 }: {
   result: RainResult;
   phase: string;
-  rain: Props["rain"];
   autoScroll: boolean;
-  onSiteVisit: () => void;
+  onOpen: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  // Bring the result into view when the storm starts (matters on phones).
   useEffect(() => {
-    if (autoScroll && phase === "raining") box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Into view when the storm starts, and again when the card grows its button.
+    if (autoScroll && phase !== "idle") box.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [phase, autoScroll]);
-  const counting = phase === "raining" || phase === "done";
-  const gross = useCountUp(result.gross, 3800, counting);
-  // Net water arrives in step with the rain, and the tank fills first.
-  const progress = result.gross > 0 ? gross / result.gross : 0;
-  const tankFill = counting
-    ? Math.min(1, Math.min(result.split.tank, result.net.mid * progress) / Math.max(1, result.inputs.tankLitres))
-    : 0;
-  const fillMm = mmToFillTank(result.inputs);
-  const rainMm = result.inputs.rainMm;
-  const displaySplit = roundSplitForDisplay(result.split, result.gross);
+  const raining = phase === "raining";
+  const done = phase === "done";
+  const landed = useCountUp(result.gross, 3800, raining || done);
+  const collect = useCountUp(result.net.mid, 900, done);
+  const { tankLitres } = result.inputs;
+  // The tank fills first, in step with the rain.
+  const progress = result.gross > 0 ? landed / result.gross : 0;
+  const tankFill = tankLitres > 0 ? Math.min(1, Math.min(result.split.tank, result.net.mid * progress) / tankLitres) : 0;
+  const overflow = Math.max(0, result.net.mid - result.split.tank);
+  const tanks = tanksLine(result.net.mid, tankLitres);
 
   if (phase === "idle") return null;
-
-  const parts = [
-    { key: "tank", label: "Stored in your tank", v: result.split.tank, display: displaySplit.tank, color: "bg-tank", text: "text-tank" },
-    {
-      key: "rechargePotential",
-      label: "Routed toward recharge (potential)",
-      v: result.split.rechargePotential,
-      display: displaySplit.rechargePotential,
-      color: "bg-ground",
-      text: "text-ground",
-    },
-    { key: "drain", label: "Routed to the drain", v: result.split.drain, display: displaySplit.drain, color: "bg-drain", text: "text-drain" },
-    { key: "lost", label: "Roof and collection losses", v: result.split.lost, display: displaySplit.lost, color: "bg-lost", text: "text-muted" },
-  ];
-  const total = Math.max(1, result.gross);
-
   return (
-    <div ref={box} className="mt-4 scroll-mt-4 space-y-4">
+    <motion.div
+      ref={box}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-3 scroll-mt-4 rounded-2xl border border-tank/30 bg-tank/5 p-4"
+    >
       <div className="flex items-end justify-between gap-3">
-        <div>
-          <RainLine mm={rain.mm} where={rain.where} km={rain.km} className="text-xs text-fg" />
-          <p className="num mt-1 text-3xl font-semibold text-fg">{roundL(gross).toLocaleString("en-US")} L</p>
-          <p className="text-xs text-muted">landed on this roof</p>
-          {phase === "done" && (
-            <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-1 space-y-0.5 text-[13px] text-fg">
-              {tanksLine(result.gross, result.inputs.tankLitres) && <li>{tanksLine(result.gross, result.inputs.tankLitres)}</li>}
-              <li>{depthLine(result.inputs.rainMm)}</li>
-            </motion.ul>
+        <div aria-live="polite">
+          <p className="num text-3xl font-semibold text-fg">{roundL(done ? collect : landed).toLocaleString("en-US")} L</p>
+          <p className="text-[13px] text-fg">{done ? "you can collect from this storm" : "landing on your roof"}</p>
+          {done && (
+            <p className="text-xs text-muted">
+              <span className="num">{formatL(result.gross)}</span> landed on your roof
+            </p>
           )}
         </div>
-        <div className="relative h-16 w-10 overflow-hidden rounded-md border border-line" aria-label="Tank level">
-          <div className="absolute inset-x-0 bottom-0 bg-tank/80 transition-[height] duration-200" style={{ height: `${tankFill * 100}%` }} />
-          <span className="num absolute inset-x-0 top-1 text-center text-[9px] text-fg/80">TANK</span>
-        </div>
+        <TankIcon fill={tankFill} />
       </div>
-
-      <AnimatePresence>
-        {phase === "done" && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            <div>
-              <p className="mb-2 text-xs uppercase tracking-widest text-muted">Follow the water</p>
-              <div className="flex h-3 w-full overflow-hidden rounded-full bg-line">
-                {parts.map((pt, i) => (
-                  <motion.div
-                    key={pt.key}
-                    className={pt.color}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(pt.v / total) * 100}%` }}
-                    transition={{ delay: 0.15 * i, duration: 0.6 }}
-                  />
-                ))}
-              </div>
-              <ul className="mt-3 space-y-1.5">
-                {parts
-                  .filter((pt) => pt.key !== "rechargePotential" || pt.v > 0)
-                  .map((pt) => (
-                    <li key={pt.key} className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${pt.color}`} />
-                        {pt.label}
-                      </span>
-                      <span className={`num ${pt.text}`}>{pt.display.toLocaleString("en-US")} L</span>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-
-            <div className="rounded-lg border border-drain/30 bg-drain/5 p-3">
-              {result.inputs.tankLitres <= 0 ? (
-                <p>
-                  No storage tank is configured. Harvestable runoff was{" "}
-                  {result.split.rechargePotential > 0
-                    ? "routed toward your recharge system; actual infiltration depends on the site."
-                    : "routed to the drain."}
-                </p>
-              ) : Number.isFinite(fillMm) && fillMm < rainMm ? (
-                <p>
-                  Your <span className="num">{result.inputs.tankLitres.toLocaleString()} L</span> tank was full after the first{" "}
-                  <span className="num text-tank">{Math.ceil(fillMm)} mm</span>. The other{" "}
-                  <span className="num text-drain">{Math.max(0, Math.floor(rainMm - fillMm))} mm</span>{" "}
-                  {result.split.rechargePotential > 0
-                    ? "was routed toward your recharge system; actual infiltration depends on the site."
-                    : "was routed to the drain."}
-                </p>
-              ) : (
-                <p>
-                  This storm fits in your tank. You could catch{" "}
-                  <span className="num text-tank">{formatRange(result.net.low, result.net.high)}</span>.
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted">
-                Harvestable after losses: {formatRange(result.net.low, result.net.high)}, depending on roof surface.
-              </p>
-              {result.split.rechargePotential > 0 && <p className="mt-1 text-xs text-muted">{RECHARGE_SUITABILITY}</p>}
-            </div>
-
-            <TankerCompare stored={result.split.tank} harvestable={result.net.mid} />
-
-            <RainPlan result={result} fillMm={fillMm} />
-
-            <Pledge onSiteVisit={onSiteVisit} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {done && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+          {tanks && <p className="mt-2 text-[13px] text-fg">{tanks}</p>}
+          {tankLitres > 0 && overflow >= 10 && (
+            <p className="mt-0.5 text-xs text-drain-deep">
+              About <span className="num">{formatL(overflow)}</span> overflowed your tank
+              {result.split.rechargePotential > 0 ? ", routed toward your recharge well." : " to the drain."}
+            </p>
+          )}
+          <button onClick={onOpen} className="btn-primary mt-3 w-full rounded-xl px-4 py-3 text-base font-semibold">
+            Open my Rain Report
+          </button>
+        </motion.div>
+      )}
+    </motion.div>
   );
 }
 
-function RainPlan({ result, fillMm }: { result: RainResult; fillMm: number }) {
-  const hasRecharge = result.inputs.hasRecharge;
-  const bigger = result.net.mid > result.inputs.tankLitres;
-  return (
-    <div>
-      <p className="mb-2 text-xs uppercase tracking-widest text-muted">Your rain plan</p>
-      <SystemDiagram areaM2={result.inputs.areaM2} firstFlushMm={result.inputs.firstFlushMm} tankLitres={result.inputs.tankLitres} />
-      <ol className="mt-3 space-y-2">
-        <li className="flex gap-2">
-          <span className="num text-tank">1</span>
-          <span>
-            Fit a leaf screen and a first-flush diverter so the dirty first{" "}
-            <span className="num">{result.inputs.firstFlushMm} mm</span> skips the tank.
-          </span>
-        </li>
-        <li className="flex gap-2">
-          <span className="num text-tank">2</span>
-          <span>
-            {result.inputs.tankLitres > 0
-              ? "Filter before storage and keep the tank covered. Use this water for gardening, washing, flushing and cleaning. Drink it only after the filter + UV branch."
-              : "No storage tank is configured. Add a covered tank if you want to reuse water for gardening, washing, flushing or cleaning."}
-          </span>
-        </li>
-        <li className="flex gap-2">
-          <span className="num text-tank">3</span>
-          <span>
-            {bigger
-              ? hasRecharge
-                ? "Keep the overflow pipe to your recharge well clear, and have the filter pit cleaned before each monsoon."
-                : "Your roof catches far more than one tank. A filtered recharge well could send the overflow toward groundwater instead of the drain. Whether your plot suits one depends on the soil and the depth to groundwater, which is checked on a site visit."
-              : "Your tank can hold this whole storm. Use it between rains so it has room for the next one."}
-          </span>
-        </li>
-        <li className="flex gap-2">
-          <span className="num text-tank">4</span>
-          <span>
-            Before the monsoon: clean the roof, gutters and filter, and check the tank lid.
-            {result.inputs.tankLitres > 0 && Number.isFinite(fillMm) &&
-              ` Your tank fills in about ${Math.ceil(fillMm)} mm of rain.`}
-          </span>
-        </li>
-      </ol>
-      <p className="mt-3 text-[11px] leading-relaxed text-muted/80">
-        Preliminary estimate only. Site-specific design, construction and any potable use need a qualified professional and
-        compliance with local rules.
-      </p>
-    </div>
+// The setup editor. Desktop: a popover beside the panel, level with the
+// Edit button. Phones: a sheet from the bottom. Rendered in a portal so the
+// panel's scroll box and the phone sheet's transform can't clip it.
+type Place = { right: number; top: number };
+
+// Desktop: just left of the side panel, level with the Edit button.
+// Phones: null, for the bottom sheet.
+function popoverPlace(anchor: HTMLElement): Place | null {
+  if (window.matchMedia("(max-width: 767px)").matches) return null;
+  const a = anchor.getBoundingClientRect();
+  const panel = anchor.closest("aside")?.getBoundingClientRect();
+  const right = window.innerWidth - (panel?.left ?? a.left) + 12;
+  const top = Math.max(16, Math.min(a.top - 24, window.innerHeight - 640));
+  return { right, top };
+}
+
+function SetupPopover({ place, onClose, children }: { place: Place | null; onClose: () => void; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    box.current?.querySelector<HTMLElement>("input, button")?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      prev?.focus?.();
+    };
+  }, [onClose]);
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className={`fixed inset-0 z-[60] ${place ? "" : "bg-black/40"}`}
+      onClick={onClose}
+    >
+      <motion.div
+        ref={box}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit your setup"
+        initial={place ? { opacity: 0, x: 8 } : { y: 24 }}
+        animate={place ? { opacity: 1, x: 0 } : { y: 0 }}
+        exit={place ? { opacity: 0, x: 8 } : { y: 24 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        style={place ? { right: place.right, top: place.top, maxHeight: `calc(100dvh - ${place.top + 16}px)` } : undefined}
+        className={`${
+          place ? "absolute w-[360px] rounded-2xl" : "absolute inset-x-0 bottom-0 max-h-[85dvh] rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+        } overflow-y-auto border border-line bg-panel p-4 text-sm text-fg shadow-2xl`}
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="font-semibold">Your setup</h2>
+          <button onClick={onClose} className="btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold">
+            Done
+          </button>
+        </div>
+        <div className="space-y-4">{children}</div>
+        <p className="mt-3 text-[11px] text-muted">Changes reset the replay, so you can run the storm again with them.</p>
+      </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
 
@@ -789,43 +608,6 @@ function TankControl({ p }: { p: Props }) {
           )}
         </ul>
       )}
-    </div>
-  );
-}
-
-function StreetTotals({ street }: { street: Street }) {
-  return (
-    <div className="mt-3 rounded-lg border border-tank/30 bg-tank/5 p-3">
-      <p className="text-xs text-muted">
-        {street.count} roofs in this storm (each with its own tank)
-      </p>
-      <p className="num mt-1 text-2xl font-semibold">{formatL(street.gross)}</p>
-      <ul className="mt-2 space-y-1 text-sm">
-        <li className="flex justify-between">
-          <span>Stored in tanks</span>
-          <span className="num text-tank">{formatL(street.tank)}</span>
-        </li>
-        {street.rechargePotential > 0 && (
-          <li className="flex justify-between">
-            <span>Routed toward recharge (potential)</span>
-            <span className="num text-ground">{formatL(street.rechargePotential)}</span>
-          </li>
-        )}
-        <li className="flex justify-between">
-          <span>Still lost to the drain</span>
-          <span className="num text-drain">{formatL(street.drain)}</span>
-        </li>
-      </ul>
-      {street.potentialWithWells > street.tank + street.rechargePotential + 100 && (
-        <p className="mt-2 rounded-md bg-ground/10 px-2 py-1.5 text-xs">
-          <span className="text-muted">Scenario: if every roof here added a filtered recharge well, </span>
-          <span className="num text-ground">{formatL(street.potentialWithWells)}</span>
-          <span className="text-muted"> could be stored or routed toward recharge. Actual infiltration requires a site assessment.</span>
-        </p>
-      )}
-      <p className="mt-2 text-xs text-muted">
-        Street action: agree one pre-monsoon cleaning day, and get one shared quote for filters and recharge wells.
-      </p>
     </div>
   );
 }

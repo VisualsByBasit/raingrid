@@ -6,8 +6,8 @@ RAIN//GRID now goes past the calculation: after replaying a storm, a household s
 
 ## The flow
 
-1. **Calculate.** Pick a roof, replay a recorded storm, get the Rain Plan (with the system diagram and the tanker comparison).
-2. **Get it installed.** The engine recommends Basic, Standard or Plus with one 2,000 L tank (two on roofs over 400 m²) and a recharge well for what the storm overflows; more tanks are an optional add (`src/lib/engine/recommend.ts`). The quote is priced line by line from `src/config/packages.ts` (`src/lib/quote.ts`), with 6 and 12 month instalments.
+1. **Calculate.** Pick a roof, replay a recorded storm, then open the Rain Report: Overview, Water (with the system diagram), Money (the tanker comparison), Street and Get it installed.
+2. **Get it installed (a Report section).** The engine recommends Basic, Standard or Plus with one 2,000 L tank (two on roofs over 400 m²) and a recharge well for what the storm overflows; more tanks are an optional add (`src/lib/engine/recommend.ts`). The quote is priced line by line from `src/config/packages.ts` (`src/lib/quote.ts`), with 6 and 12 month instalments.
 3. **Roof check in 3D.** Orbit the roof, switch on satellite imagery, drag the T (tank spot) and D (downpipe) pins.
 4. **Request a free site visit.** A form builds a WhatsApp message with the roof area, quote, recharge add-on, pins and a link back to the roof.
 5. **Become a RainGrid installer.** A short application, also by WhatsApp.
@@ -29,7 +29,7 @@ There is no backend and no stored personal data. Requests are WhatsApp messages 
 | Pilot installers | `src/data/installers.ts` | Empty on purpose ("Pilot installers coming soon"). Add someone only with their consent and after vetting. |
 | Prices | `src/config/packages.ts` | Sourced: tanks (watertank.pk 2026), plumber, helper and 4" UPVC pipe (Avenir Developments Q4 2026), UV filter (aquafilter.pk, sale price). Estimates: the gutter / screen / first-flush kit (Rs 10,000 to 30,000), pipe length and labour days. Re-check the sourced prices and replace estimates with real installer quotes once the pilot runs. |
 | Tanker comparison | `src/config/tankers.ts` | CDA Rs 500 (APP, 5 Mar 2025) and private Rs 3,000 (Dawn, 19 Jun 2023, Rawalpindi). The 1,000 gallon (4,546 L) size is an assumption to confirm locally. |
-| Instalments | `src/lib/quote.ts`, step 06 copy | Today: the quote range split evenly, "via Zindigi, indicative", before any financing charges. Replace with Zindigi's actual product terms once agreed, and get their sign-off on the wording and the use of their name. |
+| Instalments | `src/lib/quote.ts`, the quote card in the Rain Report | Today: the quote range split evenly, "via Zindigi, indicative", before any financing charges. Replace with Zindigi's actual product terms once agreed, and get their sign-off on the wording and the use of their name. |
 | Service margin | `SERVICE_MARGIN` in `src/config/packages.ts` | 15% on parts and labour in every quote and on the maintenance visit, shown as its own line: "RainGrid service: vetting, quality check, warranty (15%)". It is RainGrid's own charge, so it has no source. |
 | Maintenance price | `MAINTENANCE` in `src/config/packages.ts` | One plumber day plus one helper day at the Avenir rates (Rs 4,338 to 5,338), plus the 15% service margin: Rs 5,000 to 6,100 a visit. Filter cartridges and the lab water test have no source yet and are "quoted on the visit". |
 | Weather card | `src/lib/weather.ts` | Open-Meteo's free API is for non-commercial use. A commercial launch needs their paid plan or another source. |
