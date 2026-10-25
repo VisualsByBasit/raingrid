@@ -17,6 +17,10 @@ import Intro from "./Intro";
 import Loader from "./Loader";
 import LogoMark from "./LogoMark";
 import ThemeToggle from "./ThemeToggle";
+import BecomeInstaller from "./service/BecomeInstaller";
+import type { QuoteChoice } from "./service/QuoteCard";
+import RequestVisit from "./service/RequestVisit";
+import { nearestSector } from "@/lib/whatsapp";
 import { useTheme } from "@/lib/theme";
 import PhoneSheet from "./PhoneSheet";
 import ResultPanel, { type ResultPanelProps } from "./ResultPanel";
@@ -113,6 +117,11 @@ function RainGrid() {
   // Set by the landing's hand-off card: close the intro and focus the search.
   const [focusSearch, setFocusSearch] = useState(false);
   const [tour, setTour] = useState(false);
+  // Phase 1 service flow: the quote the user is looking at, and the forms.
+  const [quoteChoice, setQuoteChoice] = useState<QuoteChoice | null>(null);
+  const onQuoteChoice = useCallback((c: QuoteChoice) => setQuoteChoice(c), []);
+  const [visitOpen, setVisitOpen] = useState(false);
+  const [installerOpen, setInstallerOpen] = useState(false);
   const isPhone = useIsPhone();
   const theme = useTheme();
   // Phone stepper: step 04 opens once a storm has been chosen (a shared link
@@ -335,6 +344,9 @@ function RainGrid() {
     share,
     invite,
     joining,
+    onQuoteChoice,
+    onRequestVisit: () => setVisitOpen(true),
+    onBecomeInstaller: () => setInstallerOpen(true),
     openSources: () => setShowSources(true),
     roofTypes: ROOF_TYPES,
   };
@@ -478,6 +490,7 @@ function RainGrid() {
             onStart={enterCity}
             onSector={goSector}
             onSources={() => setShowSources(true)}
+            onBecomeInstaller={() => setInstallerOpen(true)}
             onFindRoof={() => {
               setFocusSearch(true);
               enterCity();
@@ -487,6 +500,26 @@ function RainGrid() {
       </AnimatePresence>
 
       <AnimatePresence>{showSources && <SourcesDrawer onClose={() => setShowSources(false)} />}</AnimatePresence>
+
+      <AnimatePresence>
+        {visitOpen && (
+          <RequestVisit
+            onClose={() => setVisitOpen(false)}
+            ctx={{
+              sector: (active && nearestSector(active.lat, active.lng)) ?? "",
+              packageId: quoteChoice?.package ?? "standard",
+              recharge: quoteChoice?.recharge ?? setup.hasRecharge,
+              quote: quoteChoice
+                ? `Rs ${quoteChoice.quote.lowRs.toLocaleString("en-US")} to ${quoteChoice.quote.highRs.toLocaleString("en-US")}`
+                : null,
+              roofAreaM2: active?.areaM2 ?? null,
+              shareLink: encodeShare(roofs, choiceKey(choice)),
+              pins: {},
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>{installerOpen && <BecomeInstaller onClose={() => setInstallerOpen(false)} />}</AnimatePresence>
 
       <AnimatePresence>{loading && intro && <Loader onDone={finishLoading} />}</AnimatePresence>
 

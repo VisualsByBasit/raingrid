@@ -38,7 +38,9 @@ export function shareQuery(roofs: Roof[], storm: string): string {
   const r = roofs
     .map((x) => `${x.lat.toFixed(5)},${x.lng.toFixed(5)},${Math.round(x.areaM2)}${x.planned ? ",1" : ""}`)
     .join(";");
-  return new URLSearchParams({ s: storm, r }).toString();
+  // Digits, dots, minus signs, commas and semicolons are safe in a query, so
+  // the roof list stays readable when it is pasted into a message.
+  return `s=${encodeURIComponent(storm)}&r=${r}`;
 }
 
 export function encodeShare(roofs: Roof[], storm: string): string {

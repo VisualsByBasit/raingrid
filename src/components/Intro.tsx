@@ -15,6 +15,7 @@ export default function Intro({
   onSector,
   onSources,
   onFindRoof,
+  onBecomeInstaller,
 }: {
   // False while the loader is still on screen.
   ready: boolean;
@@ -22,6 +23,7 @@ export default function Intro({
   onSector: (s: Sector) => void;
   onSources: () => void;
   onFindRoof: () => void;
+  onBecomeInstaller: () => void;
 }) {
   const scroller = useRef<HTMLElement>(null);
 
@@ -37,9 +39,12 @@ export default function Intro({
       <Hero ready={ready} scroller={scroller} onStart={onStart} onSector={onSector} onSources={onSources} />
       <Story container={scroller} onFindRoof={onFindRoof} />
       <WhyIslamabad />
-      <footer className="mx-auto max-w-5xl px-5 pb-16 text-sm text-muted">
+      <footer className="mx-auto flex max-w-5xl flex-wrap gap-x-6 gap-y-2 px-5 pb-16 text-sm text-muted">
         <button onClick={onSources} className="underline decoration-line underline-offset-4 hover:text-tank-deep">
           How we calculate, and every source
+        </button>
+        <button onClick={onBecomeInstaller} className="underline decoration-line underline-offset-4 hover:text-tank-deep">
+          Become a RainGrid installer
         </button>
       </footer>
     </motion.section>

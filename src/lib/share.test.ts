@@ -34,6 +34,7 @@ describe("shared links", () => {
     ];
     const q = shareQuery(roofs, "2025-07-21");
     expect(new URLSearchParams(q).get("r")).toBe("33.70000,73.05000,250,1;33.70100,73.05100,180");
+    expect(q).toBe("s=2025-07-21&r=33.70000,73.05000,250,1;33.70100,73.05100,180");
     expect(decodeShare(`?${q}`).roofs.map((r) => r.planned)).toEqual([true, false]);
     expect(decodeShare("?r=33.70,73.05,250").roofs[0].planned).toBe(false);
   });

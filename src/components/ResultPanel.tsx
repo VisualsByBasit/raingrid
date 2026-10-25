@@ -35,7 +35,8 @@ import Pledge from "./act/Pledge";
 import StreetProgressCard from "./act/StreetProgressCard";
 import SystemDiagram from "./act/SystemDiagram";
 import TankerCompare from "./act/TankerCompare";
-import QuoteCard from "./service/QuoteCard";
+import InstallersCard from "./service/InstallersCard";
+import QuoteCard, { type QuoteChoice } from "./service/QuoteCard";
 import { GuideToggle } from "./guide/GuideContext";
 import Hint from "./guide/Hint";
 
@@ -83,6 +84,10 @@ export interface ResultPanelProps {
   invite: () => void;
   // Opened from a street link and the visitor hasn't added their roof yet.
   joining: boolean;
+  // Phase 1 service flow.
+  onQuoteChoice: (c: QuoteChoice) => void;
+  onRequestVisit: () => void;
+  onBecomeInstaller: () => void;
   openSources: () => void;
   roofTypes: Record<RoofType, RoofTypeSpec>;
   // Phone stepper: render only this step, without its heading (the sheet
@@ -463,7 +468,7 @@ export default function ResultPanel(p: Props) {
                   ? "Replay again"
                   : `Replay ${p.rain.mm} mm on my roof`}
             </button>
-            <Result result={p.result} phase={p.phase} rain={p.rain} autoScroll={!bare} />
+            <Result result={p.result} phase={p.phase} rain={p.rain} autoScroll={!bare} onSiteVisit={p.onRequestVisit} />
           </>
         )}
       </Step>
@@ -497,7 +502,13 @@ export default function ResultPanel(p: Props) {
       {/* 06 Get it installed */}
       {show(6) && p.phase === "done" && p.result && (
         <Step n="06" title="Get it installed" bare={bare}>
-          <QuoteCard result={p.result} />
+          <QuoteCard result={p.result} onChoice={p.onQuoteChoice} />
+          <button onClick={p.onRequestVisit} className="btn-primary mt-4 w-full rounded-xl px-4 py-3 font-semibold">
+            Request a free site visit
+          </button>
+          <div className="mt-3">
+            <InstallersCard onBecomeInstaller={p.onBecomeInstaller} />
+          </div>
         </Step>
       )}
 
@@ -510,7 +521,19 @@ export default function ResultPanel(p: Props) {
   );
 }
 
-function Result({ result, phase, rain, autoScroll }: { result: RainResult; phase: string; rain: Props["rain"]; autoScroll: boolean }) {
+function Result({
+  result,
+  phase,
+  rain,
+  autoScroll,
+  onSiteVisit,
+}: {
+  result: RainResult;
+  phase: string;
+  rain: Props["rain"];
+  autoScroll: boolean;
+  onSiteVisit: () => void;
+}) {
   const box = useRef<HTMLDivElement>(null);
   // Bring the result into view when the storm starts (matters on phones).
   useEffect(() => {
@@ -628,7 +651,7 @@ function Result({ result, phase, rain, autoScroll }: { result: RainResult; phase
 
             <RainPlan result={result} fillMm={fillMm} />
 
-            <Pledge />
+            <Pledge onSiteVisit={onSiteVisit} />
           </motion.div>
         )}
       </AnimatePresence>
