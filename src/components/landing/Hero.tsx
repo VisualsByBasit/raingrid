@@ -97,7 +97,7 @@ export default function Hero({
             animate={{ opacity: sceneReady ? 1 : 0 }}
             transition={{ duration: 0.9, ease: EASE }}
           >
-            <HeroScene tier={tier} eventSource={header} anchor={slot} scroller={scroller} onReady={onSceneReady} />
+            <HeroScene tier={tier} ready={ready} eventSource={header} anchor={slot} scroller={scroller} onReady={onSceneReady} />
           </motion.div>
         </SceneBoundary>
       )}

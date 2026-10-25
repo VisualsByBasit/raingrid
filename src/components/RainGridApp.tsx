@@ -311,7 +311,9 @@ function RainGrid() {
 
   const intensity =
     // The landing draws its own rain, so the map's rain rests behind it.
-    phase === "raining" ? Math.min(1, 0.35 + rain.mm / 200) : intro ? 0 : phase === "done" ? 0.05 : 0.08;
+    // Desktop keeps a light drizzle between replays; phones stop the rain
+    // canvas entirely until a storm is replayed.
+    phase === "raining" ? Math.min(1, 0.35 + rain.mm / 200) : intro || isPhone ? 0 : phase === "done" ? 0.05 : 0.08;
   const suggestions = searchSectors(query);
 
   return (

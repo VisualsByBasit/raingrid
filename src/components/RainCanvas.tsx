@@ -6,7 +6,9 @@ import { useEffect, useRef } from "react";
 // gradient from transparent at the top to rain colour at the bottom, tilted
 // by the wind) is pre-rendered once to a small sprite, so a frame is just
 // drawImage calls. Particle caps halve on small screens; no React state per
-// frame; nothing is drawn when the user prefers reduced motion.
+// frame; nothing is drawn when the user prefers reduced motion. The loop
+// stops once the rain has faded to nothing and restarts when it returns.
+// Phones and tablets draw at 30 fps.
 
 const WIND_DEG = 12;
 const TAN = Math.tan((WIND_DEG * Math.PI) / 180);
@@ -34,8 +36,11 @@ type Splash = { x: number; y: number; t: number };
 export default function RainCanvas({ intensity }: { intensity: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const target = useRef(intensity);
+  // Set by the drawing effect: (re)starts the loop if it has stopped.
+  const wake = useRef<() => void>(() => {});
   useEffect(() => {
     target.current = intensity;
+    if (intensity > 0) wake.current();
   }, [intensity]);
 
   useEffect(() => {
@@ -106,10 +111,15 @@ export default function RainCanvas({ intensity }: { intensity: number }) {
     });
     const splashes: Splash[] = [];
 
+    const minGap = window.matchMedia("(max-width: 767px), (pointer: coarse)").matches ? 1000 / 30 - 2 : 0;
     let level = target.current;
     let raf = 0;
     let prev = performance.now();
     const frame = (t: number) => {
+      if (t - prev < minGap) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
       const dt = Math.min(50, t - prev) / (1000 / 60);
       prev = t;
       level += (target.current - level) * 0.05;
@@ -152,11 +162,22 @@ export default function RainCanvas({ intensity }: { intensity: number }) {
         }
       } else {
         splashes.length = 0;
+        if (target.current <= 0) {
+          // Nothing is raining: stop until the intensity rises again.
+          raf = 0;
+          return;
+        }
       }
       raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
+    wake.current = () => {
+      if (raf) return;
+      prev = performance.now();
+      raf = requestAnimationFrame(frame);
+    };
+    wake.current();
     return () => {
+      wake.current = () => {};
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };

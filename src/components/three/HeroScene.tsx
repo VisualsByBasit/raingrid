@@ -13,13 +13,38 @@ import type { SceneTier } from "./sceneMode";
 
 // The hero's one WebGL scene: the living Islamabad plate, GPU rain and the
 // refracting droplet, with a light bloom, vignette and grain. It renders
-// only while the hero is on screen and the tab is visible, and it is
-// unmounted with the intro, so the map app never runs it.
+// on demand: every frame while the hero is on screen and the tab is
+// visible, a few frames a second while the loader still covers it, and not
+// at all otherwise. It is unmounted with the intro, so the map app never
+// runs it. Phones (low tier) render at 1x with no bloom or SMAA.
 
 function CameraRig({ rig, scroller }: { rig: Rig; scroller: RefObject<HTMLElement | null> }) {
   useFrame((state, dt) => {
     stepRig(rig, state.clock.elapsedTime, Math.min(dt, 0.1), state.pointer, scroller.current?.scrollTop ?? 0, state.size.height);
   }, -2);
+  return null;
+}
+
+// The render clock for frameloop="demand". Full rate while the hero is
+// visible; about 8 fps while the loader covers it, enough to compile and
+// warm up the scene without competing with the loader; nothing when the
+// hero is off screen or the tab is hidden.
+function Driver({ active, warmOnly }: { active: boolean; warmOnly: boolean }) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (!active) return;
+    let raf = 0;
+    let last = 0;
+    const tick = (t: number) => {
+      if (!warmOnly || t - last > 120) {
+        last = t;
+        invalidate();
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [active, warmOnly, invalidate]);
   return null;
 }
 
@@ -85,13 +110,21 @@ function Scene({
         <Lights />
         <Droplet rig={rig} tier={tier} slot={slot} phoneBuffer={phoneBuffer} />
         {/* No MSAA: multisampled composer targets render black under
-            Chrome's D3D11 backend on Windows. SMAA smooths the droplet's edge. */}
-        <EffectComposer multisampling={0}>
-          <SMAA />
-          <Bloom mipmapBlur intensity={0.35} luminanceThreshold={0.72} luminanceSmoothing={0.2} />
-          <Vignette offset={0.3} darkness={0.55} />
-          <Noise premultiply opacity={0.3} />
-        </EffectComposer>
+            Chrome's D3D11 backend on Windows. SMAA smooths the droplet's edge.
+            Phones skip SMAA and bloom; vignette and grain are one cheap pass. */}
+        {tier === "high" ? (
+          <EffectComposer multisampling={0}>
+            <SMAA />
+            <Bloom mipmapBlur intensity={0.35} luminanceThreshold={0.72} luminanceSmoothing={0.2} />
+            <Vignette offset={0.3} darkness={0.55} />
+            <Noise premultiply opacity={0.3} />
+          </EffectComposer>
+        ) : (
+          <EffectComposer multisampling={0}>
+            <Vignette offset={0.3} darkness={0.55} />
+            <Noise premultiply opacity={0.3} />
+          </EffectComposer>
+        )}
         <Ready onReady={onReady} />
       </Suspense>
     </>
@@ -100,12 +133,15 @@ function Scene({
 
 export default function HeroScene({
   tier,
+  ready,
   eventSource,
   anchor,
   scroller,
   onReady,
 }: {
   tier: SceneTier;
+  // False while the loader still covers the hero.
+  ready: boolean;
   // The hero element: pointer events and the canvas size come from it.
   eventSource: RefObject<HTMLElement | null>;
   // Where the droplet hangs, as a DOM box inside the hero.
@@ -117,6 +153,8 @@ export default function HeroScene({
   const [slot, setSlot] = useState<Slot>({ x: 0.75, y: 0.5, h: 0.5 });
   const [onScreen, setOnScreen] = useState(true);
   const [tabVisible, setTabVisible] = useState(true);
+  // Device pixels per CSS pixel: 1 on phones, at most 1.5 elsewhere.
+  const [dpr] = useState(() => (tier === "low" ? 1 : Math.min(window.devicePixelRatio || 1, 1.5)));
 
   // Loader: the textures' loading progress, until <Ready> reports 1.
   const { progress } = useProgress();
@@ -159,8 +197,8 @@ export default function HeroScene({
   return (
     <Canvas
       flat
-      dpr={[1, 1.75]}
-      frameloop={onScreen && tabVisible ? "always" : "demand"}
+      dpr={dpr}
+      frameloop="demand"
       camera={{ position: [0, 0, 6], fov: 35, near: 0.1, far: 50 }}
       gl={{ alpha: true, antialias: false, stencil: false, powerPreference: "high-performance" }}
       eventSource={eventSource as RefObject<HTMLElement>}
@@ -173,6 +211,7 @@ export default function HeroScene({
       style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
       aria-hidden
     >
+      <Driver active={onScreen && tabVisible} warmOnly={!ready} />
       <Scene rig={rig} tier={tier} slot={slot} scroller={scroller} onReady={onReady} />
     </Canvas>
   );

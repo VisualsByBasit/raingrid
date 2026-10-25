@@ -173,7 +173,8 @@ export default function MapView(props: Props) {
         bearing: introStart ? -28 : 12,
         maxBounds: CITY.bounds,
         attributionControl: false,
-        pixelRatio: Math.min(2, window.devicePixelRatio || 1),
+        // Phones and tablets cap at 1.5 device pixels per CSS pixel.
+        pixelRatio: Math.min(window.matchMedia("(max-width: 767px), (pointer: coarse)").matches ? 1.5 : 2, window.devicePixelRatio || 1),
         canvasContextAttributes: { antialias: true },
       });
     } catch {
