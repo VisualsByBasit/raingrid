@@ -31,6 +31,9 @@ import type { Roof } from "@/lib/roof";
 import type { StormChoice } from "@/lib/share";
 import { useCountUp } from "@/lib/useCountUp";
 import type { Setup } from "./RainGridApp";
+import Pledge from "./act/Pledge";
+import StreetProgressCard from "./act/StreetProgressCard";
+import TankerCompare from "./act/TankerCompare";
 import { GuideToggle } from "./guide/GuideContext";
 import Hint from "./guide/Hint";
 
@@ -74,6 +77,10 @@ export interface ResultPanelProps {
   addingNeighbour: boolean;
   setAddingNeighbour: (v: boolean) => void;
   share: () => void;
+  // WhatsApp invite with the street link and progress.
+  invite: () => void;
+  // Opened from a street link and the visitor hasn't added their roof yet.
+  joining: boolean;
   openSources: () => void;
   roofTypes: Record<RoofType, RoofTypeSpec>;
   // Phone stepper: render only this step, without its heading (the sheet
@@ -229,6 +236,15 @@ export default function ResultPanel(p: Props) {
           </div>
         ) : (
           <div className="space-y-2">
+            {p.joining && (
+              <div role="status" className="rounded-lg border border-ground/40 bg-ground/5 p-3 text-[13px] leading-snug text-fg">
+                <p className="font-semibold">You opened a street link.</p>
+                <p className="mt-0.5">
+                  {p.roofs.filter((r) => r.planned).length} of {p.roofs.length} roofs here have a plan. Tap your own roof on the
+                  map to join this street.
+                </p>
+              </div>
+            )}
             {p.roofs.map((r) => (
               <div
                 key={r.id}
@@ -241,6 +257,7 @@ export default function ResultPanel(p: Props) {
                   <span className="ml-2 text-xs text-muted">
                     {r.source === "map" ? "from map outline" : r.source === "drawn" ? "drawn" : "typed"}
                   </span>
+                  {r.planned && <span className="ml-1.5 text-xs text-ground-deep">· has a plan</span>}
                 </button>
                 <input
                   inputMode="numeric"
@@ -463,6 +480,9 @@ export default function ResultPanel(p: Props) {
           >
             {p.addingNeighbour ? "Done adding neighbours" : "+ Add neighbours' roofs"}
           </button>
+          <div className="mt-3">
+            <StreetProgressCard roofs={p.roofs} onInvite={p.invite} />
+          </div>
           {p.street && <StreetTotals street={p.street} />}
           {p.roofs.length > 0 && (
             <button onClick={p.share} className={`${btn} mt-2 w-full`}>
@@ -595,7 +615,11 @@ function Result({ result, phase, rain, autoScroll }: { result: RainResult; phase
               {result.split.rechargePotential > 0 && <p className="mt-1 text-xs text-muted">{RECHARGE_SUITABILITY}</p>}
             </div>
 
+            <TankerCompare stored={result.split.tank} harvestable={result.net.mid} />
+
             <RainPlan result={result} fillMm={fillMm} />
+
+            <Pledge />
           </motion.div>
         )}
       </AnimatePresence>

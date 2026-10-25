@@ -31,13 +31,18 @@ export function choiceFromKey(key: string | null): StormChoice | null {
 }
 
 // Street share links carry roofs in the URL, no backend needed.
-// Format: ?s=<stormId|mm:NN>&r=lat,lng,area;lat,lng,area
-export function encodeShare(roofs: Roof[], storm: string): string {
+// Format: ?s=<stormId|mm:NN>&r=lat,lng,area[,1];lat,lng,area[,1]
+// A trailing ",1" marks a roof that has a Rain Plan. Links without it (all
+// links made before plans were tracked) still open, with no roofs planned.
+export function shareQuery(roofs: Roof[], storm: string): string {
   const r = roofs
-    .map((x) => `${x.lat.toFixed(5)},${x.lng.toFixed(5)},${Math.round(x.areaM2)}`)
+    .map((x) => `${x.lat.toFixed(5)},${x.lng.toFixed(5)},${Math.round(x.areaM2)}${x.planned ? ",1" : ""}`)
     .join(";");
-  const params = new URLSearchParams({ s: storm, r });
-  return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+  return new URLSearchParams({ s: storm, r }).toString();
+}
+
+export function encodeShare(roofs: Roof[], storm: string): string {
+  return `${window.location.origin}${window.location.pathname}?${shareQuery(roofs, storm)}`;
 }
 
 export function decodeShare(search: string): { roofs: Roof[]; storm: string | null; outOfRange: boolean } {
@@ -46,10 +51,10 @@ export function decodeShare(search: string): { roofs: Roof[]; storm: string | nu
   const roofs: Roof[] = [];
   let outOfRange = false;
   for (const [i, chunk] of (p.get("r") ?? "").split(";").entries()) {
-    const [lat, lng, area] = chunk.split(",").map(Number);
+    const [lat, lng, area, planned] = chunk.split(",").map(Number);
     const inBounds = Number.isFinite(lat) && Number.isFinite(lng) && isInAuthorizedCity(lat, lng);
     if ([lat, lng, area].every(Number.isFinite) && inBounds && area > 0 && area <= SHARE_LIMITS.areaM2) {
-      roofs.push({ id: `shared-${i}`, label: `Roof ${i + 1}`, lat, lng, areaM2: area, source: "typed" });
+      roofs.push({ id: `shared-${i}`, label: `Roof ${i + 1}`, lat, lng, areaM2: area, source: "typed", planned: planned === 1 });
     } else if ([lat, lng].every(Number.isFinite) && !inBounds) {
       outOfRange = true;
     }

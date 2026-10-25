@@ -5,6 +5,7 @@ import { CITY } from "@/config/city";
 import { DEFAULTS, ENGINE_SOURCES, ROOF_TYPES } from "@/lib/engine";
 import { ANNUAL_NORMAL_MM, GAUGES, MONSOON_NORMAL_MM, MONTHLY_NORMALS, NORMALS_SOURCE, PRESETS, STORMS } from "@/data/storms";
 import { FOOTAGE } from "./landing/footage";
+import { TANKER_PRESETS, TANKER_SIZE } from "@/config/tankers";
 
 const WETTEST_MONTH_MM = Math.max(...MONTHLY_NORMALS.map((m) => m.mm));
 
@@ -115,6 +116,22 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           sectors, so each reading carries a match badge: under 3 km good, 3 to 8 km fair, over 8 km low. These bands are
           RAIN//GRID&apos;s own rule of thumb, not a published standard.
         </p>
+
+        <h3 className="mt-6 font-semibold">Tanker comparison (estimate)</h3>
+        <ul className="mt-2 space-y-1.5 text-muted">
+          {TANKER_PRESETS.map((t) => (
+            <li key={t.id}>
+              {t.label}: Rs {t.priceRs.toLocaleString("en-US")}, {t.note}.{" "}
+              <a className="underline underline-offset-2 hover:text-tank" href={t.source.url} target="_blank" rel="noreferrer">
+                {t.source.label} ↗
+              </a>
+            </li>
+          ))}
+          <li>
+            Tanker size: {TANKER_SIZE.label}, {TANKER_SIZE.note}. Neither source states a size. The comparison prices the water
+            your tank kept from the chosen storm, and the middle harvest estimate if you had room for all of it.
+          </li>
+        </ul>
 
         <h3 className="mt-6 font-semibold">City facts</h3>
         <ul className="mt-2 space-y-1.5 text-muted">

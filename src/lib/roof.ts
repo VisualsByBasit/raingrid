@@ -14,6 +14,8 @@ export interface Roof {
   source: RoofSource;
   geometry?: Polygon | MultiPolygon;
   height?: number; // building height in metres, for the 3D highlight
+  // Has a Rain Plan (the storm was replayed on it). Travels in street links.
+  planned?: boolean;
 }
 
 type PolyFeature = Feature<Polygon | MultiPolygon>;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isInAuthorizedCity } from "../config/city";
 import { ALL_SECTORS } from "../data/sectors";
-import { SHARE_LIMITS, choiceFromKey, decodeShare } from "./share";
+import { SHARE_LIMITS, choiceFromKey, decodeShare, shareQuery } from "./share";
 
 describe("shared links", () => {
   it("clamps custom rainfall to the engine limit", () => {
@@ -25,6 +25,17 @@ describe("shared links", () => {
 
   it("keeps every searchable Islamabad sector inside the authorised range", () => {
     expect(ALL_SECTORS.every(({ lat, lng }) => isInAuthorizedCity(lat, lng))).toBe(true);
+  });
+
+  it("carries which roofs have a plan, and reads old links as unplanned", () => {
+    const roofs = [
+      { id: "a", label: "Your roof", lat: 33.7, lng: 73.05, areaM2: 250, source: "map" as const, planned: true },
+      { id: "b", label: "Neighbour 1", lat: 33.701, lng: 73.051, areaM2: 180.4, source: "map" as const },
+    ];
+    const q = shareQuery(roofs, "2025-07-21");
+    expect(new URLSearchParams(q).get("r")).toBe("33.70000,73.05000,250,1;33.70100,73.05100,180");
+    expect(decodeShare(`?${q}`).roofs.map((r) => r.planned)).toEqual([true, false]);
+    expect(decodeShare("?r=33.70,73.05,250").roofs[0].planned).toBe(false);
   });
 
   it("limits shared streets to 12 roofs", () => {

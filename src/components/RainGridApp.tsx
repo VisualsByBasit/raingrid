@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { CITY, OUT_OF_AUTHORIZED_RANGE, isInAuthorizedCity } from "@/config/city";
 import { ALL_SECTORS, searchSectors, type Sector } from "@/data/sectors";
 import { ISLAMABAD_STORMS, PRESETS, STORMS, nearestReading } from "@/data/storms";
-import { DEFAULTS, ROOF_TYPES, aggregate, calculate, type RoofType } from "@/lib/engine";
+import { DEFAULTS, ROOF_TYPES, aggregate, calculate, roundL, type RoofType } from "@/lib/engine";
+import { inviteMessage, streetProgress, whatsappShareUrl } from "@/lib/invite";
 import { measuredAt } from "@/lib/explain";
 import { areaOf, centroidOf, newRoofId, type Roof } from "@/lib/roof";
 import { choiceFromKey, choiceKey, decodeShare, encodeShare, type StormChoice } from "@/lib/share";
@@ -82,6 +83,9 @@ function RainGrid() {
   );
   const finishLoading = useCallback(() => setLoading(false), []);
   const [roofs, setRoofs] = useState<Roof[]>(shared.roofs);
+  // Opened from a street link: the visitor's first roof joins the street
+  // instead of replacing it.
+  const [joining, setJoining] = useState(shared.roofs.length > 0);
   const [activeId, setActiveId] = useState<string | null>(shared.roofs[0]?.id ?? null);
   const [mode, setMode] = useState<"pick" | "draw">("pick");
   const [addingNeighbour, setAddingNeighbour] = useState(false);
@@ -167,6 +171,15 @@ function RainGrid() {
           setActiveId(dup.id);
           return prev;
         }
+        if (joining) {
+          if (prev.length >= 12) {
+            setToast("This street is full at 12 roofs");
+            return prev;
+          }
+          setJoining(false);
+          setActiveId(roof.id);
+          return [...prev, { ...roof, label: "Your roof" }];
+        }
         if (addingNeighbour || prev.length === 0) {
           const label = prev.length === 0 ? "Your roof" : `Neighbour ${prev.length}`;
           const next = [...prev, { ...roof, label }].slice(0, 12);
@@ -180,7 +193,7 @@ function RainGrid() {
       });
       setPhase("idle");
     },
-    [addingNeighbour],
+    [addingNeighbour, joining],
   );
 
   // From the landing, the map enters with a cinematic flight; from the map's
@@ -253,7 +266,19 @@ function RainGrid() {
     if (!result) return;
     setPhase("raining");
     if (active) setFly({ lng: active.lng, lat: active.lat, zoom: 17.2, key: Date.now() });
-    setTimeout(() => setPhase("done"), 4200);
+    const id = active?.id;
+    setTimeout(() => {
+      setPhase("done");
+      // This roof now has a Rain Plan; street links carry that.
+      setRoofs((prev) => prev.map((r) => (r.id === id ? { ...r, planned: true } : r)));
+    }, 4200);
+  };
+
+  const invite = () => {
+    const link = encodeShare(roofs, choiceKey(choice));
+    const stored = street ? street.tank : (result?.split.tank ?? 0);
+    const text = inviteMessage({ progress: streetProgress(roofs), storedLitres: roundL(stored), link });
+    window.open(whatsappShareUrl(text), "_blank", "noopener,noreferrer");
   };
 
   const share = async () => {
@@ -305,6 +330,8 @@ function RainGrid() {
     addingNeighbour,
     setAddingNeighbour,
     share,
+    invite,
+    joining,
     openSources: () => setShowSources(true),
     roofTypes: ROOF_TYPES,
   };
