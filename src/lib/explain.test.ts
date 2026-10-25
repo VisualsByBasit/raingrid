@@ -11,7 +11,7 @@ import {
   mmExplainer,
   roofDisplayLabel,
   tanksCount,
-  tanksLine,
+  fillsLine,
 } from "./explain";
 
 describe("relatable maths", () => {
@@ -23,14 +23,15 @@ describe("relatable maths", () => {
     expect(tanksCount(250_000, 2000)).toBe("125");
   });
 
-  it("writes the tanks line with singular and plural", () => {
-    expect(tanksLine(62_000, 2000)).toBe("= 31 of your 2,000 L tanks");
-    expect(tanksLine(2000, 2000)).toBe("= 1 of your 2,000 L tank");
-    expect(tanksLine(800, 2000)).toBe("= 0.4 of your 2,000 L tank");
+  it("says how many times the water would fill your tank", () => {
+    expect(fillsLine(26_000, 2000)).toBe("enough to fill your 2,000 L tank 13 times");
+    expect(fillsLine(3000, 2000)).toBe("enough to fill your 2,000 L tank 1.5 times");
+    expect(fillsLine(2000, 2000)).toBe("enough to fill your 2,000 L tank once");
+    expect(fillsLine(800, 2000)).toBe("enough to fill 40% of your 2,000 L tank");
   });
 
-  it("has no tanks line without a tank", () => {
-    expect(tanksLine(62_000, 0)).toBeNull();
+  it("has no fills line without a tank", () => {
+    expect(fillsLine(62_000, 0)).toBeNull();
     expect(tanksCount(Number.NaN, 2000)).toBeNull();
   });
 

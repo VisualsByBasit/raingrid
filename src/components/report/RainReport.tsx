@@ -161,7 +161,9 @@ export default function RainReport(p: ReportProps) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
             >
-              {p.tab === "overview" && <OverviewTab result={p.result} setTab={p.setTab} />}
+              {p.tab === "overview" && (
+                <OverviewTab result={p.result} rain={p.rain} roof={p.roof} setup={p.setup} setSetup={p.setSetup} setTab={p.setTab} />
+              )}
               {p.tab === "water" && <WaterTab result={p.result} />}
               {p.tab === "money" && <TankerCompare stored={p.result.split.tank} harvestable={p.result.net.mid} />}
               {p.tab === "street" && (

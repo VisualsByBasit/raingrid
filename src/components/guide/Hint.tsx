@@ -40,8 +40,11 @@ export default function Hint({ text, label = "What does this mean?" }: { text: s
       pinned.current = false;
       setPos(null);
     };
+    // Escape closes the hint only, not a Report or dialog around it.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      close();
     };
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;

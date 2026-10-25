@@ -8,6 +8,7 @@ import { FOOTAGE } from "./landing/footage";
 import { TANKER_PRESETS, TANKER_SIZE } from "@/config/tankers";
 import { ESTIMATE_LABEL, MAINTENANCE, PARTS, SERVICE_MARGIN } from "@/config/packages";
 import { priceLabel } from "@/lib/price";
+import { SOURCES } from "@/lib/sources";
 
 const WETTEST_MONTH_MM = Math.max(...MONTHLY_NORMALS.map((m) => m.mm));
 
@@ -68,6 +69,7 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
             room and parapets take up roof space. You can change it.
           </li>
           <li>Tank: {DEFAULTS.tankLitres.toLocaleString()} L by default. You can change it.</li>
+          <li>{SOURCES.recommendation.label}. More tanks are an optional add in the quote.</li>
           <li>“Routed toward recharge” is potential routing, never measured infiltration. Recharge suitability depends on soil and depth to groundwater, so it is checked on the site visit.</li>
           <li>Results are shown as ranges and rounded to the nearest 100 L.</li>
           <li>Harvested rainwater is for gardening, washing, flushing, cleaning and recharge. Not for drinking.</li>

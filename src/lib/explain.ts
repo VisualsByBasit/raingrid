@@ -23,12 +23,16 @@ export function tanksCount(litres: number, tankLitres: number): string | null {
   return n >= 10 ? nf(Math.round(n)) : oneDecimal(n);
 }
 
-// "= 31 of your 2,000 L tanks"
-export function tanksLine(litres: number, tankLitres: number): string | null {
+// "enough to fill your 2,000 L tank 13 times": how far the water you can
+// collect would go, worded so it doesn't read like you need 13 tanks.
+export function fillsLine(litres: number, tankLitres: number): string | null {
   const count = tanksCount(litres, tankLitres);
   if (count === null) return null;
-  const plural = litres / tankLitres > 1.05 ? "tanks" : "tank";
-  return `= ${count} of your ${nf(tankLitres)} L ${plural}`;
+  const tank = `your ${nf(tankLitres)} L tank`;
+  const n = litres / tankLitres;
+  if (n < 0.95) return `enough to fill ${Math.round(n * 100)}% of ${tank}`;
+  if (n < 1.05) return `enough to fill ${tank} once`;
+  return `enough to fill ${tank} ${count} times`;
 }
 
 // 1 mm of rain is 1 L on every m2, i.e. a layer 1 mm deep: 157 mm -> "15.7 cm".
@@ -95,3 +99,6 @@ export function roofDisplayLabel(label: string, areaM2: number, source: RoofSour
 export function largeComplexNotice(areaM2: number): string {
   return `This outline covers a whole complex (${nf(Math.round(areaM2))} m²), including courtyards and walkways, not one roof. Results are for the full outline. Edit the area or draw just the roof you want.`;
 }
+
+// "enough to fill..." -> "Enough to fill..." when it starts a line.
+export const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

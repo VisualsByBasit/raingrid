@@ -4,13 +4,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { GAUGES, ISLAMABAD_STORMS, PRESETS, nearestReading } from "@/data/storms";
-import { formatL, roundL, tankWhatIf, type RainResult, type RoofType, type RoofTypeSpec } from "@/lib/engine";
-import { gaugeLabel, isLargeComplex, largeComplexNotice, measuredAt, roofDisplayLabel, tanksLine } from "@/lib/explain";
+import { formatL, roundL, type RainResult, type RoofType, type RoofTypeSpec } from "@/lib/engine";
+import { fillsLine, gaugeLabel, isLargeComplex, largeComplexNotice, measuredAt, roofDisplayLabel, sentence } from "@/lib/explain";
 import type { Roof } from "@/lib/roof";
 import type { StormChoice } from "@/lib/share";
 import { useCountUp } from "@/lib/useCountUp";
 import type { Setup } from "./RainGridApp";
 import { RECHARGE_SUITABILITY, RainLine, TankIcon } from "./RainBits";
+import TankControl from "./TankControl";
 import { GuideToggle } from "./guide/GuideContext";
 import Hint from "./guide/Hint";
 
@@ -84,7 +85,6 @@ const Step = ({
 const btn = "rounded-lg border border-line px-3 py-2 text-sm transition hover:border-tank/60 hover:text-fg";
 
 const SETUP_HINTS = {
-  tank: "The water tank your house has. One 2,000 L tank is common. Change it to match yours.",
   recharge: "A filtered pit that sends overflow into the ground instead of the drain.",
   roof: "Concrete roofs lose more water than metal sheets. Not sure? Pick Other: the range gets wider instead of guessing.",
   share: "Part of the roof lost to the water tank, stair room and parapets.",
@@ -323,7 +323,7 @@ export default function ResultPanel(p: Props) {
         <AnimatePresence>
           {editing && (
             <SetupPopover place={editing.place} onClose={() => setEditing(null)}>
-              <TankControl p={p} />
+              <TankControl setup={setup} setSetup={p.setSetup} areaM2={p.active?.areaM2 ?? null} rainMm={p.rain.mm} />
               <div>
                 <p className="text-xs text-muted">
                   Roof surface
@@ -443,7 +443,7 @@ function ResultCard({
   const progress = result.gross > 0 ? landed / result.gross : 0;
   const tankFill = tankLitres > 0 ? Math.min(1, Math.min(result.split.tank, result.net.mid * progress) / tankLitres) : 0;
   const overflow = Math.max(0, result.net.mid - result.split.tank);
-  const tanks = tanksLine(result.net.mid, tankLitres);
+  const tanks = fillsLine(result.net.mid, tankLitres);
 
   if (phase === "idle") return null;
   return (
@@ -467,7 +467,7 @@ function ResultCard({
       </div>
       {done && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-          {tanks && <p className="mt-2 text-[13px] text-fg">{tanks}</p>}
+          {tanks && <p className="mt-2 text-[13px] text-fg">{sentence(tanks)}</p>}
           {tankLitres > 0 && overflow >= 10 && (
             <p className="mt-0.5 text-xs text-drain-deep">
               About <span className="num">{formatL(overflow)}</span> overflowed your tank
@@ -546,68 +546,5 @@ function SetupPopover({ place, onClose, children }: { place: Place | null; onClo
       </motion.div>
     </motion.div>,
     document.body,
-  );
-}
-
-// The tank, kept up front: size stepper plus what 1,000 L more or less
-// would change for the chosen storm.
-function TankControl({ p }: { p: Props }) {
-  const size = p.setup.tankLitres;
-  const set = (v: number) => p.setSetup({ ...p.setup, tankLitres: Math.max(0, Math.min(1_000_000, v)) });
-  const what = p.active && p.rain.mm > 0 ? tankWhatIf({ areaM2: p.active.areaM2, rainMm: p.rain.mm, ...p.setup }) : null;
-  const elsewhere = p.setup.hasRecharge ? "toward recharge" : "to the drain";
-  const stepBtn =
-    "grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-line text-lg text-fg transition hover:border-tank/60 disabled:opacity-40";
-  return (
-    <div className="rounded-xl border border-tank/30 bg-tank/5 p-3">
-      <p className="text-xs text-muted">
-        Your tank
-        <Hint text={SETUP_HINTS.tank} label="About tank" />
-      </p>
-      <div className="mt-1.5 flex items-center gap-2">
-        <button className={stepBtn} onClick={() => set(size - 500)} disabled={size <= 0} aria-label="Tank 500 litres smaller">
-          −
-        </button>
-        <label className="relative flex-1">
-          <span className="sr-only">Tank size in litres</span>
-          <input
-            inputMode="numeric"
-            value={size}
-            onChange={(e) => set(Number(e.target.value.replace(/\D/g, "")) || 0)}
-            className="num h-10 w-full rounded-lg border border-line bg-panel px-3 pr-8 text-center text-lg font-semibold outline-none focus:border-tank"
-          />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">L</span>
-        </label>
-        <button className={stepBtn} onClick={() => set(size + 500)} aria-label="Tank 500 litres bigger">
-          +
-        </button>
-      </div>
-      {what && (
-        <ul className="mt-2 space-y-0.5 text-xs text-fg">
-          <li>
-            With a <span className="num">{formatL(what.biggerSize)}</span> tank:{" "}
-            {what.biggerGain >= 10 ? (
-              <>
-                <span className="num text-tank-deep">{formatL(what.biggerGain)}</span> more stored from this storm
-              </>
-            ) : (
-              "no more stored, this storm already fits"
-            )}
-          </li>
-          {what.smallerSize < size && (
-            <li>
-              With {what.smallerSize > 0 ? <>a <span className="num">{formatL(what.smallerSize)}</span> tank</> : "no tank"}:{" "}
-              {what.smallerLoss >= 10 ? (
-                <>
-                  <span className="num text-drain-deep">{formatL(what.smallerLoss)}</span> less stored, sent {elsewhere} instead
-                </>
-              ) : (
-                "stores the same for this storm"
-              )}
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
   );
 }

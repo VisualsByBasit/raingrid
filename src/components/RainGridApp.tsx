@@ -12,6 +12,7 @@ import { measuredAt } from "@/lib/explain";
 import { NO_PINS, areaOf, centroidOf, newRoofId, type Roof, type RoofPins } from "@/lib/roof";
 import { detectSceneMode } from "./three/sceneMode";
 import { reportFromSearch, type ReportTab } from "@/lib/report";
+import type { SourceRef } from "@/lib/sources";
 import { choiceFromKey, choiceKey, decodeShare, encodeShare, shareQuery, type StormChoice } from "@/lib/share";
 import type { FlyTarget } from "./MapView";
 import RainCanvas from "./RainCanvas";
@@ -45,17 +46,29 @@ export interface Setup {
 }
 
 // The rain for a roof, plus where that number comes from in plain words
-// ("measured at Saidpur gauge, 3 km from your roof").
-export function rainFor(choice: StormChoice, lat: number, lng: number): { mm: number; label: string; where: string; km?: number } {
-  if (choice.kind === "custom") return { mm: choice.mm, label: `${choice.mm} mm (your number)`, where: "your own number" };
+// ("measured at Saidpur gauge, 3 km from your roof"), and its source.
+export function rainFor(
+  choice: StormChoice,
+  lat: number,
+  lng: number,
+): { mm: number; label: string; where: string; km?: number; source?: SourceRef } {
+  if (choice.kind === "custom") {
+    return { mm: choice.mm, label: `${choice.mm} mm (your number)`, where: "your own number", source: { label: "Rain amount: the number you entered" } };
+  }
   if (choice.kind === "preset") {
     const p = PRESETS.find((x) => x.id === choice.id)!;
-    return { mm: p.mm, label: p.title, where: "long-term average, not a single storm" };
+    return { mm: p.mm, label: p.title, where: "long-term average, not a single storm", source: p.source };
   }
   const s = STORMS.find((x) => x.id === choice.id)!;
   const r = nearestReading(s, lat, lng);
   if (!r) return { mm: 0, label: s.dateLabel, where: "no gauge reported near your roof" };
-  return { mm: r.mm, label: s.dateLabel, where: measuredAt(r.gauge.name, r.km), km: r.km };
+  return {
+    mm: r.mm,
+    label: s.dateLabel,
+    where: measuredAt(r.gauge.name, r.km),
+    km: r.km,
+    source: { label: `Rain: ${r.gauge.name} reading, reported by ${s.source.label}`, url: s.source.url },
+  };
 }
 
 type Phase = "idle" | "raining" | "done";
@@ -623,6 +636,11 @@ function RainGrid() {
             roofs={roofs}
             rain={rain}
             result={result}
+            setup={setup}
+            setSetup={(s) => {
+              setSetup(s);
+              resetResult();
+            }}
             street={street}
             onQuoteChoice={onQuoteChoice}
             onRequestVisit={() => setVisitOpen(true)}
