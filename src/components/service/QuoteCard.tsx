@@ -144,7 +144,7 @@ export default function QuoteCard({
             </div>
           ))}
         </div>
-        <p className="mt-1.5 text-[11px] text-muted">Via Zindigi, indicative: the range split evenly, before any financing charges. Terms are set by Zindigi.</p>
+        <p className="mt-1.5 text-[11px] text-muted">Indicative instalments, subject to Zindigi&apos;s terms: the range split evenly, before any financing charges.</p>
 
         <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="mt-2 text-xs text-tank-deep underline underline-offset-4">
           {open ? "Hide" : "See"} what&apos;s in the price

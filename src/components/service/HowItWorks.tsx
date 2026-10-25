@@ -2,14 +2,14 @@
 
 import { motion } from "framer-motion";
 
-// "How RainGrid works": calculate, site visit, certified install, pay in
+// "How RainGrid works": calculate, site visit, vetted install, pay in
 // instalments, yearly maintenance. "landing" is a full-width section;
 // "compact" is a small numbered strip for the panel.
 const STEPS = [
   { title: "Calculate", body: "Replay a real storm on your roof and get a package and price." },
   { title: "Site visit", body: "A free visit checks the roof, tank spot, drains and soil." },
-  { title: "Certified install", body: "A trained, vetted installer fits it with food-grade parts." },
-  { title: "Pay in instalments", body: "Spread the cost over 6 or 12 months via Zindigi (indicative)." },
+  { title: "Vetted install", body: "A vetted installer fits it with food-grade parts." },
+  { title: "Pay in instalments", body: "Spread the cost over 6 or 12 months. Indicative instalments, subject to Zindigi's terms." },
   { title: "Yearly maintenance", body: "Tank clean, gutters, filter and a water test once a year." },
 ];
 

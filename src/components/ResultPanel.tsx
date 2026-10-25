@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { GAUGES, ISLAMABAD_STORMS, PRESETS, nearestReading } from "@/data/storms";
 import { formatL, roundL, type RainResult, type RoofType, type RoofTypeSpec } from "@/lib/engine";
-import { fillsLine, gaugeLabel, isLargeComplex, largeComplexNotice, measuredAt, roofDisplayLabel, sentence } from "@/lib/explain";
+import { fillsLine, gaugeLabel, isLargeComplex, keepLine, largeComplexNotice, measuredAt, roofDisplayLabel, sentence } from "@/lib/explain";
 import type { Roof } from "@/lib/roof";
 import type { StormChoice } from "@/lib/share";
 import { useCountUp } from "@/lib/useCountUp";
@@ -414,10 +414,9 @@ export default function ResultPanel(p: Props) {
   );
 }
 
-// After the replay: what you can collect, a tank icon, one plain line, the
-// overflow, and the way into the Rain Report. While it rains, the number
-// counts the rain landing on the roof; then it settles on what you can
-// collect.
+// After the replay: what the roof could supply, what the tanks keep of it,
+// a tank icon, and the way into the Rain Report. While it rains, the number
+// counts the rain landing on the roof; then it settles on the supply.
 function ResultCard({
   result,
   phase,
@@ -442,7 +441,6 @@ function ResultCard({
   // The tank fills first, in step with the rain.
   const progress = result.gross > 0 ? landed / result.gross : 0;
   const tankFill = tankLitres > 0 ? Math.min(1, Math.min(result.split.tank, result.net.mid * progress) / tankLitres) : 0;
-  const overflow = Math.max(0, result.net.mid - result.split.tank);
   const tanks = fillsLine(result.net.mid, tankLitres);
 
   if (phase === "idle") return null;
@@ -455,25 +453,30 @@ function ResultCard({
     >
       <div className="flex items-end justify-between gap-3">
         <div aria-live="polite">
-          <p className="num text-3xl font-semibold text-fg">{roundL(done ? collect : landed).toLocaleString("en-US")} L</p>
-          <p className="text-[13px] text-fg">{done ? "you can collect from this storm" : "landing on your roof"}</p>
-          {done && (
-            <p className="text-xs text-muted">
-              <span className="num">{formatL(result.gross)}</span> landed on your roof
-            </p>
+          {done ? (
+            <>
+              <p className="text-[13px] text-fg">Your roof could supply</p>
+              <p className="num text-3xl font-semibold text-fg">{roundL(collect).toLocaleString("en-US")} L</p>
+              <p className="text-[13px] text-fg">from this storm</p>
+            </>
+          ) : (
+            <>
+              <p className="num text-3xl font-semibold text-fg">{roundL(landed).toLocaleString("en-US")} L</p>
+              <p className="text-[13px] text-fg">landing on your roof</p>
+            </>
           )}
         </div>
         <TankIcon fill={tankFill} />
       </div>
       {done && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-          {tanks && <p className="mt-2 text-[13px] text-fg">{sentence(tanks)}</p>}
-          {tankLitres > 0 && overflow >= 10 && (
-            <p className="mt-0.5 text-xs text-drain-deep">
-              About <span className="num">{formatL(overflow)}</span> overflowed your tank
-              {result.split.rechargePotential > 0 ? ", routed toward your recharge well." : " to the drain."}
-            </p>
-          )}
+          <p className="mt-2 text-[13px] font-medium text-fg">
+            {keepLine(result.split.tank, result.net.mid, tankLitres, result.split.rechargePotential > 0)}
+          </p>
+          {tanks && <p className="mt-0.5 text-xs text-fg">{sentence(tanks)}.</p>}
+          <p className="mt-0.5 text-xs text-muted">
+            <span className="num">{formatL(result.gross)}</span> landed on your roof.
+          </p>
           <button onClick={onOpen} className="btn-primary mt-3 w-full rounded-xl px-4 py-3 text-base font-semibold">
             Open my Rain Report
           </button>

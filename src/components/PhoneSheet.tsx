@@ -325,7 +325,7 @@ function KeyLine({ panel, step, blockedHint }: { panel: ResultPanelProps; step: 
   } else if (step === 3) {
     text = `${panel.setup.tankLitres.toLocaleString("en-US")} L tank · ${panel.setup.hasRecharge ? "recharge well" : "no recharge well"}`;
   } else {
-    text = panel.result && panel.phase === "done" ? `${formatL(roundL(panel.result.net.mid))} you can collect` : "Ready to replay the storm";
+    text = panel.result && panel.phase === "done" ? `${formatL(roundL(panel.result.net.mid))} your roof could supply` : "Ready to replay the storm";
   }
   return (
     <p className="truncate px-2 pb-1 text-center text-xs text-muted" aria-live="polite">

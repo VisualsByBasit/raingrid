@@ -1,6 +1,8 @@
 "use client";
 
 import { ESTIMATE_LABEL, MAINTENANCE, SERVICE_LINE } from "@/config/packages";
+import { SOURCES } from "@/lib/sources";
+import SourceTip from "../SourceTip";
 
 const rs = (v: number) => v.toLocaleString("en-US");
 
@@ -18,6 +20,9 @@ export function MaintenanceCard() {
         {MAINTENANCE.tasks.map((t) => (
           <li key={t.name}>
             <span className="text-fg">{t.name}:</span> <span className="text-muted">{t.what}</span>
+            {t.name === "Tank clean" && (
+              <SourceTip method="Clean tanks once a year (Mosley, SOPAC 2005, Tank maintenance)." sources={[SOURCES.waterQuality]} />
+            )}
           </li>
         ))}
       </ul>
@@ -42,14 +47,28 @@ export function MaintenanceCard() {
   );
 }
 
-// Why the stored water is safe to use, and what it is not for.
+// Why the stored water is safe to use, and what it is not for. Lines that
+// rest on published guidance carry its source tip.
 export function WaterSafety() {
-  const points = [
-    { t: "First flush", b: "The dirtiest first rain of every storm, with roof dust and droppings, is diverted to the drain before anything reaches the tank." },
+  const points: { t: string; b: string; tip?: string }[] = [
+    {
+      t: "First flush",
+      b: "The dirtiest first rain of every storm, with roof dust and droppings, is diverted to the drain before anything reaches the tank.",
+      tip: "With the first flush diverted, the water collected is much cleaner (Mosley, SOPAC 2005, First-flush devices).",
+    },
     { t: "Mesh screens", b: "A leaf screen on the gutter and mesh on the inlet and overflow keep out leaves, insects and mosquitoes." },
     { t: "Sealed food-grade tank", b: "A covered, food-grade tank keeps out light, so algae don't grow, and keeps the water clean between rains." },
+    {
+      t: "Cleaning",
+      b: "The tank is cleaned once a year, and the roof and gutters are kept clear of leaves and debris.",
+      tip: "Clean tanks once a year, and keep roofs and gutters free of debris (Mosley, SOPAC 2005, Tank maintenance; Roofs).",
+    },
     { t: "Filter + UV for drinking", b: "Drinking water only comes through the 7-stage filter with UV (Plus). Without it, use the water for toilets, washing, cleaning and the garden." },
-    { t: "Acidic rain", b: "Rain is naturally slightly acidic. UPVC pipes and food-grade plastic tanks don't rust like bare metal, so it does them no harm." },
+    {
+      t: "Acidic rain",
+      b: "Acidic rain mainly affects metal parts, so the kit uses PVC and food-grade plastic.",
+      tip: "Acidic rain means more corrosion and leaching of metals from roofs and fittings; PVC gutters do not rust; tanks should be food-grade plastic (Mosley, SOPAC 2005).",
+    },
     { t: "Roofs only", b: "RainGrid only collects roof water. Road and street water is never collected." },
   ];
   return (
@@ -59,6 +78,7 @@ export function WaterSafety() {
         {points.map((p) => (
           <li key={p.t}>
             <span className="text-fg">{p.t}:</span> <span className="text-muted">{p.b}</span>
+            {p.tip && <SourceTip method={p.tip} sources={[SOURCES.waterQuality]} />}
           </li>
         ))}
       </ul>

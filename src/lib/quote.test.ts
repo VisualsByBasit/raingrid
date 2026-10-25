@@ -16,7 +16,8 @@ describe("quote", () => {
     expect(SERVICE_MARGIN).toBe(0.15);
     const q = buildQuote("standard", { size: 2000, count: 1 });
     const service = q.lines.find((l) => l.part === "service")!;
-    expect(service.label).toBe("RainGrid service: vetting, quality check, warranty (15%)");
+    expect(service.label).toBe("RainGrid service: vetting, quality check and aftercare (15%)");
+    expect(service.label).not.toMatch(/warranty/i);
     expect(service.estimate).toBe(false);
     const parts = q.lines.filter((l) => l.part !== "service");
     expect(service.lowRs).toBeCloseTo(parts.reduce((s, l) => s + l.lowRs, 0) * 0.15, 6);

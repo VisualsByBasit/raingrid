@@ -1,4 +1,4 @@
-// Certified RainGrid installers. Empty until the pilot installers are
+// Vetted pilot RainGrid installers. Empty until the pilot installers are
 // vetted: the app shows "Pilot installers coming soon". Never add a person
 // or business here without their consent and a completed vetting.
 
@@ -7,7 +7,7 @@ export interface Installer {
   name: string;
   trade: string;
   sectors: string[];
-  certifiedOn: string; // ISO date
+  vettedOn: string; // ISO date
 }
 
 export const INSTALLERS: Installer[] = [];

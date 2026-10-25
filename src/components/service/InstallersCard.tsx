@@ -2,14 +2,14 @@
 
 import { INSTALLERS } from "@/data/installers";
 
-// Certified installers near you. The list is empty until the pilot
+// Vetted pilot installers near you. The list is empty until the pilot
 // installers are vetted, so this shows the "coming soon" state.
 export default function InstallersCard({ onBecomeInstaller }: { onBecomeInstaller: () => void }) {
   return (
     <div className="rounded-xl border border-line p-3 text-[13px]">
-      <p className="font-semibold text-fg">Certified installers</p>
+      <p className="font-semibold text-fg">Vetted pilot installers (coming soon)</p>
       {INSTALLERS.length === 0 ? (
-        <p className="mt-1 text-muted">Pilot installers coming soon. Every installer is trained and vetted before they visit a home.</p>
+        <p className="mt-1 text-muted">No installers are listed yet. Each pilot installer is vetted before they visit a home.</p>
       ) : (
         <ul className="mt-1 space-y-1">
           {INSTALLERS.map((i) => (

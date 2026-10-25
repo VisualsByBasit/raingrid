@@ -159,11 +159,11 @@ export const RECHARGE_ADDON = {
 };
 
 // RainGrid's own charge on every installed quote and every maintenance
-// visit: vetting the installer, a quality check after the job, and the
-// warranty. It is a business decision, not a market price, so it has no
+// visit: vetting the installer, a quality check after the job, and
+// aftercare. It is a business decision, not a market price, so it has no
 // source and no estimate flag; it is shown as its own line.
 export const SERVICE_MARGIN = 0.15;
-export const SERVICE_LINE = `RainGrid service: vetting, quality check, warranty (${Math.round(SERVICE_MARGIN * 100)}%)`;
+export const SERVICE_LINE = `RainGrid service: vetting, quality check and aftercare (${Math.round(SERVICE_MARGIN * 100)}%)`;
 
 // Yearly maintenance plan. The visit is priced from the sourced plumber and
 // helper day rates plus the service margin; consumables have no source yet,

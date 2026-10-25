@@ -29,14 +29,14 @@ export default function BecomeInstaller({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Dialog title={text ? "Send your application" : "Become a RainGrid installer"} onClose={onClose}>
+    <Dialog title={text ? "Send your application" : "Join our pilot installer network"} onClose={onClose}>
       {text ? (
         <SendStep text={text} onBack={() => setText(null)} onDone={onClose} />
       ) : (
         <form onSubmit={submit} noValidate className="space-y-3">
           <p className="text-[13px] text-muted">
             RainGrid is looking for plumbers and masons in Islamabad to fit gutters, first-flush diverters, tanks and recharge
-            wells. Pilot installers are trained and vetted before they get jobs.
+            wells. Pilot installers are vetted before they get jobs.
           </p>
           <label className="block">
             <span className={labelText}>Name</span>

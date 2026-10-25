@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatL, formatRange, mmToFillTank, roundL, ROOF_TYPES, type RainResult } from "@/lib/engine";
-import { depthCm, fillsLine, sentence } from "@/lib/explain";
+import { depthCm, fillsLine, keepLine, sentence } from "@/lib/explain";
 import { overviewGauges, recommendedStack } from "@/lib/overview";
 import type { ReportTab } from "@/lib/report";
 import type { Roof } from "@/lib/roof";
@@ -83,12 +83,16 @@ export default function OverviewTab({
     <div className="space-y-8 text-sm">
       {/* Hero number */}
       <section>
+        <p className="text-base text-fg">Your roof could supply</p>
         <p className="num text-5xl font-semibold tracking-tight text-fg md:text-6xl">
           {roundL(collect).toLocaleString("en-US")} L
           <SourceTip {...collectTip} label="How is this worked out?" />
         </p>
-        <p className="mt-1 text-base text-fg">you can collect from this storm</p>
-        <p className="mt-0.5 text-muted">
+        <p className="text-base text-fg">from this storm</p>
+        <p className="mt-2 text-[15px] font-medium text-fg">
+          {keepLine(result.split.tank, result.net.mid, tankLitres, result.split.rechargePotential > 0)}
+        </p>
+        <p className="mt-2 text-muted">
           <span className="num">{formatL(result.gross)}</span> landed on your roof
           <SourceTip {...landedTip} />
         </p>
@@ -181,7 +185,7 @@ export default function OverviewTab({
                 <td className="py-1.5 text-right">100%</td>
               </tr>
               <tr className="border-b border-line/60">
-                <td className="py-1.5 pr-3">You can collect</td>
+                <td className="py-1.5 pr-3">Your roof could supply</td>
                 <td className="py-1.5 pr-3 text-right">{formatL(result.net.mid)}</td>
                 <td className="py-1.5 text-right">{Math.round((result.net.mid / Math.max(1, result.gross)) * 100)}%</td>
               </tr>

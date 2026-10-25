@@ -75,7 +75,7 @@ export function buildQuote(
 }
 
 // Indicative monthly instalments: the quote range split evenly, before any
-// financing charges. Shown as "via Zindigi, indicative".
+// financing charges. Shown as "Indicative instalments, subject to Zindigi's terms".
 export function instalments(q: { lowRs: number; highRs: number }, months: number) {
   return { months, lowRs: roundHundred(q.lowRs / months), highRs: roundHundred(q.highRs / months) };
 }

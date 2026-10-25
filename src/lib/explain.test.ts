@@ -12,6 +12,7 @@ import {
   roofDisplayLabel,
   tanksCount,
   fillsLine,
+  keepLine,
 } from "./explain";
 
 describe("relatable maths", () => {
@@ -28,6 +29,13 @@ describe("relatable maths", () => {
     expect(fillsLine(3000, 2000)).toBe("enough to fill your 2,000 L tank 1.5 times");
     expect(fillsLine(2000, 2000)).toBe("enough to fill your 2,000 L tank once");
     expect(fillsLine(800, 2000)).toBe("enough to fill 40% of your 2,000 L tank");
+  });
+
+  it("says what the tanks keep of the supply", () => {
+    expect(keepLine(2000, 26_000, 2000, false)).toBe("Your tanks keep 2,000 L; the rest overflows.");
+    expect(keepLine(2000, 26_000, 2000, true)).toBe("Your tanks keep 2,000 L; the rest overflows toward your recharge well.");
+    expect(keepLine(1500, 1500, 2000, false)).toBe("Your tanks keep all of it.");
+    expect(keepLine(0, 5000, 0, false)).toBe("No tank is set up, so it all overflows.");
   });
 
   it("has no fills line without a tank", () => {

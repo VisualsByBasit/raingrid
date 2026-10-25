@@ -102,3 +102,13 @@ export function largeComplexNotice(areaM2: number): string {
 
 // "enough to fill..." -> "Enough to fill..." when it starts a line.
 export const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const hundredL = (v: number) => `${nf(Math.round(v / 100) * 100)} L`;
+
+// "Your tanks keep 2,000 L; the rest overflows." Under "Your roof could
+// supply X L": what storage actually holds of that.
+export function keepLine(kept: number, supply: number, tankLitres: number, toWell: boolean): string {
+  if (!(tankLitres > 0)) return `No tank is set up, so it all overflows${toWell ? " toward your recharge well" : ""}.`;
+  if (supply - kept < 10) return "Your tanks keep all of it.";
+  return `Your tanks keep ${hundredL(kept)}; the rest overflows${toWell ? " toward your recharge well" : ""}.`;
+}

@@ -5,7 +5,7 @@
 //   Rain on roof ─┬─ Unpiped roof ──────────────── Drain
 //                 ├─ Losses (soaked in, evaporated, splashed)
 //                 ├─ First flush ───────────────── Drain
-//                 └─ You can collect ─┬─ Tank
+//                 └─ Could supply ─┬─ Tank
 //                                     ├─ Recharge
 //                                     └─ Overflow ─ Drain
 
@@ -36,7 +36,7 @@ export function waterFlows(r: RainResult): { nodes: FlowNode[]; links: FlowLink[
     { from: "rain", to: "unpiped", litres: unpiped, label: "Rain on the part of the roof that isn't piped" },
     { from: "rain", to: "lost", litres: r.split.lost, label: "Soaked into the roof, evaporated or splashed" },
     { from: "rain", to: "firstFlush", litres: r.firstFlush, label: "The dirty first flush, diverted" },
-    { from: "rain", to: "collect", litres: r.net.mid, label: "Water you can collect (after first flush and losses)" },
+    { from: "rain", to: "collect", litres: r.net.mid, label: "Water the roof could supply (after first flush and losses)" },
     { from: "collect", to: "tank", litres: r.split.tank, label: "Stored in your tank" },
     { from: "collect", to: "recharge", litres: r.split.rechargePotential, label: "Routed toward recharge (potential)" },
     { from: "collect", to: "drain", litres: overflow, label: "Overflow, to the drain" },
@@ -51,7 +51,7 @@ export function waterFlows(r: RainResult): { nodes: FlowNode[]; links: FlowLink[
     { id: "unpiped", label: "Unpiped roof", column: 1 },
     { id: "lost", label: "Losses", column: 1 },
     { id: "firstFlush", label: "First flush", column: 1 },
-    { id: "collect", label: "You can collect", column: 1 },
+    { id: "collect", label: "Could supply", column: 1 },
     { id: "tank", label: "Tank", column: 2 },
     { id: "recharge", label: "Recharge", column: 2 },
     { id: "drain", label: "Drain", column: 2 },

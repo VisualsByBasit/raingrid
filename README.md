@@ -21,7 +21,7 @@
 
 ## RainGrid as a service (Zindigi demo)
 
-In the Rain Report, "Get it installed" recommends a package (Basic, Standard or Plus) with one 2,000 L tank (two on roofs over 400 m²) and a recharge well for the overflow, with more tanks as an option, prices it line by line from sourced parts, and shows indicative 6 and 12 month instalments via Zindigi. A 3D roof check lets you mark where a tank and downpipe would go, and a free site visit request goes out over WhatsApp. It runs in demo mode until the team number is set: see [docs/zindigi-demo.md](docs/zindigi-demo.md).
+In the Rain Report, "Get it installed" recommends a package (Basic, Standard or Plus) with one 2,000 L tank (two on roofs over 400 m²) and a recharge well for the overflow, with more tanks as an option, prices it line by line from sourced parts, and shows 6 and 12 month instalments (indicative instalments, subject to Zindigi's terms). A 3D roof check lets you mark where a tank and downpipe would go, and a free site visit request goes out over WhatsApp. It runs in demo mode until the team number is set: see [docs/zindigi-demo.md](docs/zindigi-demo.md).
 
 ## Highlights
 

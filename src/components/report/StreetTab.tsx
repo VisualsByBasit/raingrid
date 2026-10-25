@@ -20,18 +20,26 @@ export default function StreetTab({
 }: Pick<ReportProps, "roofs" | "street" | "onAddNeighbours" | "invite" | "share"> & { result: RainResult; onPledgeVisit: () => void }) {
   const n = street?.count ?? 1;
   const landed = street ? street.gross : result.gross;
-  const kept = street ? street.tank + street.rechargePotential : result.split.tank + result.split.rechargePotential;
+  const wells = street ? street.rechargePotential : result.split.rechargePotential;
+  const kept = (street ? street.tank : result.split.tank) + wells;
+  const toDrain = street ? street.drain : result.split.drain;
   return (
     <div className="space-y-4 text-sm">
       <section className="rounded-2xl border border-tank/40 bg-tank/5 p-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-tank-deep">This street link</p>
-        <p className="num mt-1 text-4xl font-semibold tracking-tight text-fg">{formatL(landed)}</p>
-        <p className="text-fg">
-          of rain landed on the {n === 1 ? "1 roof" : `${n} roofs`} on this link in this storm.{" "}
-          <span className="num text-tank-deep">{formatL(kept)}</span> is kept in tanks
-          {(street ? street.rechargePotential : result.split.rechargePotential) > 0 ? " or sent toward wells" : ""}; the rest is lost on
-          the roofs or heads for the drain and the nalah.
+        <p className="text-[15px] font-medium text-fg">A street of roofs keeps some water out of the nalah when it floods.</p>
+        <p className="mt-1 text-xs text-muted">
+          On this link, {n === 1 ? "1 roof" : `${n} roofs`}, in this storm (<span className="num">{formatL(landed)}</span> of rain):
         </p>
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <div>
+            <p className="num text-2xl font-semibold text-tank-deep">{formatL(kept)}</p>
+            <p className="text-xs text-muted">kept in tanks{wells > 0 ? " or sent toward wells" : ""}</p>
+          </div>
+          <div>
+            <p className="num text-2xl font-semibold text-drain-deep">{formatL(toDrain)}</p>
+            <p className="text-xs text-muted">went to the drain</p>
+          </div>
+        </div>
       </section>
       <StreetProgressCard roofs={roofs} onInvite={invite} />
       <button onClick={onAddNeighbours} className={`${btn} w-full`}>

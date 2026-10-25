@@ -26,8 +26,12 @@ export const SOURCES = {
     label: `Recommended storage: RAIN//GRID's rule, one 2,000 L tank (two on roofs over ${LARGE_ROOF_M2} m²), with a recharge well for the overflow`,
   },
   recharge: { label: "Recharge: potential routing only, never measured infiltration; soil and groundwater are checked on the site visit" },
+  waterQuality: {
+    label: "Mosley, L. (2005) Water Quality of Rainwater Harvesting Systems, SOPAC Miscellaneous Report 579",
+    url: "https://www.pacificwater.org/userfiles/file/MR0579.pdf",
+  },
   rainDays: { label: "Rain days (1 mm or more): " + NORMALS_SOURCE.label, url: NORMALS_SOURCE.url },
-  dailyUse: { label: `Water used from the tank each day: ${DEFAULT_DAILY_USE} L by default (estimate, confirmed on site visit; you can change it)` },
+  dailyUse: { label: `Water used from the tank each day: ${DEFAULT_DAILY_USE} L by default (estimate: a household's non-drinking use, such as toilets, washing and cleaning; confirmed on site visit)` },
 } satisfies Record<string, SourceRef>;
 
 // Where the roof's area came from.

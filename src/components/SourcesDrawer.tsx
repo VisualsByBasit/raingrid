@@ -71,6 +71,12 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           </li>
           <li>Tank: {DEFAULTS.tankLitres.toLocaleString()} L by default. You can change it.</li>
           <li>{SOURCES.recommendation.label}. More tanks are an optional add in the quote.</li>
+          <li>
+            Water quality (first flush, yearly tank cleaning, acidic rain and metal parts):{" "}
+            <a className="underline underline-offset-2 hover:text-tank" href={SOURCES.waterQuality.url} target="_blank" rel="noreferrer">
+              {SOURCES.waterQuality.label} ↗
+            </a>
+          </li>
           <li>“Routed toward recharge” is potential routing, never measured infiltration. Recharge suitability depends on soil and depth to groundwater, so it is checked on the site visit.</li>
           <li>Results are shown as ranges and rounded to the nearest 100 L.</li>
           <li>Harvested rainwater is for gardening, washing, flushing, cleaning and recharge. Not for drinking unless it goes through the 7-stage filter with UV (Plus).</li>
@@ -146,7 +152,7 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
           <li>Pipe length and labour days in a quote are estimates, confirmed on site visit.</li>
           <li>
             RainGrid service ({Math.round(SERVICE_MARGIN * 100)}%): added to parts and labour in every quote and to the
-            maintenance visit, for vetting the installer, a quality check and the warranty. It is RainGrid&apos;s own
+            maintenance visit, for vetting the installer, a quality check and aftercare. It is RainGrid&apos;s own
             charge, not a market price, and is shown as its own line.
           </li>
           <li>
@@ -155,8 +161,8 @@ export default function SourcesDrawer({ onClose }: { onClose: () => void }) {
             RainGrid service. {MAINTENANCE.separately}
           </li>
           <li>
-            Instalments are the quote range split evenly over 6 or 12 months, before any financing charges. They are
-            indicative; Zindigi sets the actual terms.
+            Indicative instalments, subject to Zindigi&apos;s terms: the quote range split evenly over 6 or 12 months,
+            before any financing charges.
           </li>
         </ul>
 

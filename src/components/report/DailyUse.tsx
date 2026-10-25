@@ -1,6 +1,5 @@
 "use client";
 
-import { ESTIMATE_LABEL } from "@/config/packages";
 import { DEFAULT_DAILY_USE } from "@/lib/season";
 
 // How much water the household takes from the tank each day. It decides
@@ -24,8 +23,8 @@ export default function DailyUse({ value, onChange }: { value: number; onChange:
         className="mt-2 w-full"
       />
       <span className="block text-[11px] text-muted">
-        Toilets, washing, cleaning and the garden. The default, {DEFAULT_DAILY_USE} L a day, is an {ESTIMATE_LABEL}; change it to
-        match your home.
+        {DEFAULT_DAILY_USE} L a day by default, estimate: a household&apos;s non-drinking use (toilets, washing, cleaning); confirmed
+        on site visit. Change it to match your home.
       </span>
     </label>
   );
