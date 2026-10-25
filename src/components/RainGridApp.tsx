@@ -16,6 +16,8 @@ import RainCanvas from "./RainCanvas";
 import Intro from "./Intro";
 import Loader from "./Loader";
 import LogoMark from "./LogoMark";
+import ThemeToggle from "./ThemeToggle";
+import { useTheme } from "@/lib/theme";
 import PhoneSheet from "./PhoneSheet";
 import ResultPanel, { type ResultPanelProps } from "./ResultPanel";
 import SourcesDrawer from "./SourcesDrawer";
@@ -112,6 +114,7 @@ function RainGrid() {
   const [focusSearch, setFocusSearch] = useState(false);
   const [tour, setTour] = useState(false);
   const isPhone = useIsPhone();
+  const theme = useTheme();
   // Phone stepper: step 04 opens once a storm has been chosen (a shared link
   // already carries one).
   const [stormPicked, setStormPicked] = useState(shared.roofs.length > 0);
@@ -359,6 +362,7 @@ function RainGrid() {
           raining={phase === "raining"}
           addingNeighbour={addingNeighbour}
           onUpdateRoof={updateRoof}
+          theme={theme}
         />
       )}
       {mapError && (
@@ -394,6 +398,7 @@ function RainGrid() {
             How it works
           </button>
         )}
+        <ThemeToggle className="pointer-events-auto" />
         {!intro && (
           <div data-tour="search" className="pointer-events-auto relative w-full max-w-xs md:w-72">
             <input

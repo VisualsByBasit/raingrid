@@ -6,6 +6,7 @@ import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson"
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CITY } from "@/config/city";
 import { areaOf, centroidOf, mergePieces, newRoofId, type Roof } from "@/lib/roof";
+import type { Theme } from "@/lib/theme";
 
 export interface FlyTarget {
   lng: number;
@@ -35,6 +36,7 @@ interface Props {
   flyTarget: FlyTarget | null;
   raining: boolean;
   addingNeighbour: boolean;
+  theme: Theme;
 }
 
 type Geom = Polygon | MultiPolygon;
@@ -71,8 +73,6 @@ const ROOF_ACTIVE_RAIN = "#38bdf8";
 // Green (#10b981) is reserved for neighbour roofs.
 const ROOF_OTHER = "#7dd3fc";
 const ROOF_LIFT = 1.2;
-const ROOF_START = "#e6edf4";
-const HOVER_COLOR = "#a5d8f7";
 const HOVER_LIFT = 3;
 const OUTLINE = "#0ea5e9";
 const OUTLINE_GLOW = "#7dd3fc";
@@ -81,21 +81,57 @@ const HOVER_MS = 250;
 const NO_TRANSITION = { duration: 0, delay: 0 };
 const SOFT_TRANSITION = { duration: 300, delay: 0 };
 
-const POSITRON = "https://tiles.openfreemap.org/styles/positron";
+// Basemap and the colours RAIN//GRID paints on top, per theme. Both styles
+// are OpenFreeMap's, so tiles, glyphs and attribution are the same.
+type MapTheme = {
+  style: string;
+  background: string;
+  buildings: [string, string, string, string]; // by height: 0, 12, 30, 80 m
+  roofStart: string;
+  hover: string;
+  sky: { sky: string; horizon: string; fog: string };
+  light: { color: string; intensity: number };
+  hillshade: { shadow: string; highlight: string; accent: string };
+  rail: string;
+};
+const MAP_THEMES: Record<Theme, MapTheme> = {
+  light: {
+    style: "https://tiles.openfreemap.org/styles/positron",
+    background: "#f4f7fa",
+    buildings: ["#f3f5f8", "#e6edf4", "#d6e4f1", "#c2d8ee"],
+    roofStart: "#e6edf4",
+    hover: "#a5d8f7",
+    sky: { sky: "#a9d6f5", horizon: "#eef6fc", fog: "#ffffff" },
+    light: { color: "#ffffff", intensity: 0.32 },
+    hillshade: { shadow: "#9fb4c9", highlight: "#ffffff", accent: "#c8d7e5" },
+    rail: "#ffffff",
+  },
+  dark: {
+    style: "https://tiles.openfreemap.org/styles/dark",
+    background: "#06202c",
+    buildings: ["#1a3443", "#1f3d4f", "#25485c", "#2c556c"],
+    roofStart: "#1f3d4f",
+    hover: "#2b7fb0",
+    sky: { sky: "#0b2a3a", horizon: "#123a4d", fog: "#06202c" },
+    light: { color: "#d7ecf7", intensity: 0.28 },
+    hillshade: { shadow: "#020d13", highlight: "#2a4f63", accent: "#0b2a3a" },
+    rail: "#9fb3c1",
+  },
+};
 const TERRARIUM = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 const ELEVATION_CREDIT =
   'Elevation: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">Mapzen / AWS Terrain Tiles</a>';
 
-// Only used if the OpenFreeMap positron style itself fails to load. Kept tiny
-// and label-free (no glyphs needed); the 3D layers are added on top as usual.
-const FALLBACK_STYLE: StyleSpecification = {
+// Only used if the OpenFreeMap style itself fails to load. Kept tiny and
+// label-free (no glyphs needed); the 3D layers are added on top as usual.
+const fallbackStyle = (t: MapTheme): StyleSpecification => ({
   version: 8,
-  name: "RAIN//GRID minimal light map",
+  name: "RAIN//GRID minimal map",
   sources: {
     openmaptiles: { type: "vector", url: "https://tiles.openfreemap.org/planet" },
   },
   layers: [
-    { id: "background", type: "background", paint: { "background-color": "#f4f7fa" } },
+    { id: "background", type: "background", paint: { "background-color": t.background } },
     {
       id: "park",
       type: "fill",
@@ -115,17 +151,18 @@ const FALLBACK_STYLE: StyleSpecification = {
       type: "line",
       source: "openmaptiles",
       "source-layer": "transportation",
-      paint: { "line-color": "#dfe6ee", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.5, 17, 4] },
+      paint: { "line-color": t.buildings[2], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.5, 17, 4] },
     },
   ],
-};
+});
 
 // Served from /public (see scripts/copy-maplibre-worker.mjs).
 setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
-// Very light grey to pale blue by height.
-function buildingColor(height: ExpressionSpecification): ExpressionSpecification {
-  return ["interpolate", ["linear"], height, 0, "#f3f5f8", 12, "#e6edf4", 30, "#d6e4f1", 80, "#c2d8ee"];
+// Light: very light grey to pale blue by height. Dark: deep monsoon blues.
+function buildingColor(height: ExpressionSpecification, t: MapTheme): ExpressionSpecification {
+  const [a, b, c, d] = t.buildings;
+  return ["interpolate", ["linear"], height, 0, a, 12, b, 30, c, 80, d];
 }
 
 export default function MapView(props: Props) {
@@ -153,6 +190,16 @@ export default function MapView(props: Props) {
     return () => clearTimeout(t);
   }, [notice]);
 
+  // Theme change: swap the basemap. style.load re-runs decorate() with the
+  // new colours and re-syncs roofs and drawing.
+  const appliedTheme = useRef(props.theme);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || appliedTheme.current === props.theme) return;
+    appliedTheme.current = props.theme;
+    m.setStyle(MAP_THEMES[props.theme].style, { diff: false });
+  }, [props.theme]);
+
   // Init once.
   useEffect(() => {
     if (!el.current || map.current) return;
@@ -166,7 +213,7 @@ export default function MapView(props: Props) {
     try {
       m = new MLMap({
         container: el.current,
-        style: POSITRON,
+        style: MAP_THEMES[latest.current.theme].style,
         center: introStart ? [73.02, 33.63] : CITY.center,
         zoom: introStart ? 10.9 : CITY.zoom,
         pitch: introStart ? 15 : 45,
@@ -208,7 +255,7 @@ export default function MapView(props: Props) {
     const switchToFallback = () => {
       if (styleLoaded || usingFallback) return;
       usingFallback = true;
-      m.setStyle(FALLBACK_STYLE, { diff: false });
+      m.setStyle(fallbackStyle(MAP_THEMES[latest.current.theme]), { diff: false });
     };
     const styleTimer = window.setTimeout(switchToFallback, 12000);
     m.on("error", (e) => {
@@ -355,7 +402,7 @@ export default function MapView(props: Props) {
       hoverKey = "";
       lastPick = null;
       pickDirty = true;
-      decorate(m, slow);
+      decorate(m, slow, MAP_THEMES[latest.current.theme]);
       ready.current = true;
       roofAnim.current.activeId = null;
       syncRoofs();
@@ -550,7 +597,7 @@ export default function MapView(props: Props) {
     const anim = roofAnim.current;
     if (hasActive && anim.activeId !== activeRoofId) {
       anim.lift = 0;
-      anim.color = ROOF_START;
+      anim.color = MAP_THEMES[latest.current.theme].roofStart;
       tweenRoof(m, anim, raining ? ROOF_ACTIVE_RAIN : ROOF_ACTIVE);
     }
     anim.activeId = hasActive ? activeRoofId : null;
@@ -640,7 +687,7 @@ export default function MapView(props: Props) {
         <div className="flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-rain shadow-[0_0_8px_color-mix(in_oklab,var(--color-rain)_45%,transparent)] transition-all duration-200 ease-out group-data-[over=true]:h-6 group-data-[over=true]:w-6">
           <span className="h-1 w-1 rounded-full bg-rain" />
         </div>
-        <span className="absolute left-4 top-1 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-tank-deep opacity-0 shadow-sm transition-opacity duration-150 group-data-[over=true]:opacity-100">
+        <span className="absolute left-4 top-1 whitespace-nowrap rounded-full bg-panel/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-tank-deep opacity-0 shadow-sm transition-opacity duration-150 group-data-[over=true]:opacity-100">
           select
         </span>
       </div>
@@ -657,19 +704,19 @@ export default function MapView(props: Props) {
 
 // Everything RAIN//GRID adds on top of the base style. Runs on every style
 // load, so the local fallback style gets the same 3D scene.
-function decorate(m: MLMap, slow: boolean) {
+function decorate(m: MLMap, slow: boolean, t: MapTheme) {
   const firstSymbol = m.getStyle().layers.find((l) => l.type === "symbol")?.id;
 
   m.setSky({
-    "sky-color": "#a9d6f5",
-    "horizon-color": "#eef6fc",
-    "fog-color": "#ffffff",
+    "sky-color": t.sky.sky,
+    "horizon-color": t.sky.horizon,
+    "fog-color": t.sky.fog,
     "sky-horizon-blend": 0.6,
     "horizon-fog-blend": 0.7,
     "fog-ground-blend": 0.35,
     "atmosphere-blend": 0,
   });
-  m.setLight({ anchor: "map", position: [1.4, 225, 40], color: "#ffffff", intensity: 0.32 });
+  m.setLight({ anchor: "map", position: [1.4, 225, 40], color: t.light.color, intensity: t.light.intensity });
 
   // No 3D terrain: buildings, outlines and roofs stay exactly aligned with
   // the flat map. The Margalla Hills still read through a subtle hillshade
@@ -691,9 +738,9 @@ function decorate(m: MLMap, slow: boolean) {
         source: HILLSHADE_SOURCE,
         paint: {
           "hillshade-exaggeration": 0.25,
-          "hillshade-shadow-color": "#9fb4c9",
-          "hillshade-highlight-color": "#ffffff",
-          "hillshade-accent-color": "#c8d7e5",
+          "hillshade-shadow-color": t.hillshade.shadow,
+          "hillshade-highlight-color": t.hillshade.highlight,
+          "hillshade-accent-color": t.hillshade.accent,
           "hillshade-illumination-direction": 315,
         },
       },
@@ -719,7 +766,7 @@ function decorate(m: MLMap, slow: boolean) {
         "source-layer": "building",
         minzoom: 14,
         paint: {
-          "fill-extrusion-color": buildingColor(liveHeight),
+          "fill-extrusion-color": buildingColor(liveHeight, t),
           "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15, liveHeight],
           "fill-extrusion-base": [
             "interpolate",
@@ -766,7 +813,7 @@ function decorate(m: MLMap, slow: boolean) {
       source: HOVER_SOURCE,
       minzoom: 12,
       paint: {
-        "fill-extrusion-color": HOVER_COLOR,
+        "fill-extrusion-color": t.hover,
         "fill-extrusion-height": ["+", ["get", "h"], HOVER_LIFT],
         "fill-extrusion-height-transition": NO_TRANSITION,
         "fill-extrusion-base": 0,
@@ -879,7 +926,7 @@ function decorate(m: MLMap, slow: boolean) {
     source: "rg-links",
     filter: ["==", ["get", "rail"], true],
     paint: {
-      "fill-extrusion-color": "#ffffff",
+      "fill-extrusion-color": t.rail,
       "fill-extrusion-base": ["get", "z"],
       "fill-extrusion-height": ["+", ["get", "z"], 0.2],
       "fill-extrusion-opacity": 0.85,

@@ -241,8 +241,8 @@ export default function ResultPanel(p: Props) {
               <div role="status" className="rounded-lg border border-ground/40 bg-ground/5 p-3 text-[13px] leading-snug text-fg">
                 <p className="font-semibold">You opened a street link.</p>
                 <p className="mt-0.5">
-                  {p.roofs.filter((r) => r.planned).length} of {p.roofs.length} roofs here have a plan. Tap your own roof on the
-                  map to join this street.
+                  {p.roofs.filter((r) => r.planned).length} of {p.roofs.length} {p.roofs.length === 1 ? "roof here has" : "roofs here have"}{" "}
+                  a plan. Tap your own roof on the map to join this street.
                 </p>
               </div>
             )}

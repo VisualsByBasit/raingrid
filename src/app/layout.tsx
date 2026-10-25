@@ -4,6 +4,7 @@ import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/600.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
+import { THEME_SCRIPT } from "@/lib/theme-script";
 
 export const metadata: Metadata = {
   title: "RAIN//GRID - Replay Islamabad's storms on your roof",
@@ -17,14 +18,22 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#07090c",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eaf3f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#06202c" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
+    // data-theme is set before first paint by THEME_SCRIPT (stored choice,
+    // else the system preference); React keeps what the script wrote.
+    <html lang="en" data-theme="light" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="h-full">{children}</body>
     </html>
   );

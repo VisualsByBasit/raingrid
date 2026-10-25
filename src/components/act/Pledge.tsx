@@ -37,7 +37,7 @@ export default function Pledge({ onSiteVisit }: { onSiteVisit?: () => void }) {
             <span
               aria-hidden
               className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border text-xs ${
-                on[p.id] ? "border-ground-deep bg-ground-deep text-white" : "border-line"
+                on[p.id] ? "border-ground-deep bg-ground-deep text-panel" : "border-line"
               }`}
             >
               {on[p.id] ? "✓" : ""}

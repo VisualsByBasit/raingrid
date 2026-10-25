@@ -10,6 +10,7 @@ import { PLATE_URL } from "../three/assets";
 import { detectSceneMode, detectSceneTier, type SceneMode } from "../three/sceneMode";
 import HeroBackdrop from "./HeroBackdrop";
 import LogoMark from "../LogoMark";
+import ThemeToggle from "../ThemeToggle";
 
 // Landing hero: the living Islamabad plate (one WebGL scene with the
 // refracting droplet), the 21 July 2025 headline and sector search. Lines
@@ -117,9 +118,12 @@ export default function Hero({
             RAIN<span className="text-rain">{"//"}</span>GRID
           </span>
         </span>
-        <button onClick={onSources} className="glass-dark rounded-full px-4 py-2 text-xs text-glacier transition hover:bg-white/20">
-          How we calculate
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={onSources} className="glass-dark rounded-full px-4 py-2 text-xs text-glacier transition hover:bg-white/20">
+            How we calculate
+          </button>
+          <ThemeToggle tone="dark" />
+        </div>
       </div>
 
       <div className="relative mx-auto grid min-h-dvh w-full max-w-7xl items-center gap-6 px-5 pb-28 pt-20 md:grid-cols-[1.2fr_0.8fr] md:gap-8 md:px-10 md:pt-24">
