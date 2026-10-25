@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ESTIMATE_LABEL, PACKAGES, RECHARGE_ADDON, type PackageId } from "@/config/packages";
 import type { RainResult } from "@/lib/engine";
-import { recommend } from "@/lib/engine/recommend";
+import { defaultTank, recommend } from "@/lib/engine/recommend";
 import { buildQuote, instalments, type Quote } from "@/lib/quote";
 
 export interface QuoteChoice {
@@ -16,10 +16,11 @@ export interface QuoteChoice {
 const rs = (v: number) => `Rs ${v.toLocaleString("en-US")}`;
 const range = (lo: number, hi: number) => (lo === hi ? rs(lo) : `${rs(lo)} to ${hi.toLocaleString("en-US")}`);
 
-// The package a roof needs for the chosen storm, priced from
-// src/config/packages.ts. The recommendation comes from the engine; the
-// user can compare the other packages, add drinking water or a recharge
-// well. Reports the current choice up for the site-visit request.
+// The package a roof needs, priced from src/config/packages.ts. The
+// recommendation comes from the engine (one 2,000 L tank, a recharge well
+// for the overflow); the user can compare the other packages, add tanks to
+// store more, add drinking water or a recharge well. Reports the current
+// choice up for the site-visit request.
 export default function QuoteCard({
   result,
   onChoice,
@@ -40,7 +41,12 @@ export default function QuoteCard({
   const [rechargeOverride, setRechargeOverride] = useState<boolean | null>(null);
   const pkg = picked ?? rec.package;
   const recharge = rechargeOverride ?? (rec.suggestRecharge || result.inputs.hasRecharge);
-  const tank = pkg === "basic" ? null : (rec.tank ?? { size: 2000 as const, count: 1 });
+  const [extra, setExtra] = useState(0);
+  const baseTank = rec.tank ?? defaultTank(result.inputs.areaM2);
+  // Optional extra 2,000 L tanks, as far as this storm's overflow fills them.
+  const canAdd = pkg !== "basic" && rec.tank?.size === 2000 ? rec.extraTanksUseful : 0;
+  const extraN = Math.min(extra, canAdd);
+  const tank = pkg === "basic" ? null : { size: baseTank.size, count: baseTank.count + extraN };
   const quote = buildQuote(pkg, tank, { recharge });
   const six = instalments(quote, 6);
   const twelve = instalments(quote, 12);
@@ -86,8 +92,40 @@ export default function QuoteCard({
         {tank && (
           <p className="mt-1 text-xs text-muted">
             Tank: {tank.count > 1 ? `${tank.count} × ` : ""}
-            {tank.size.toLocaleString("en-US")} L, sized for this storm.
+            {tank.size.toLocaleString("en-US")} L{extraN > 0 ? `, including ${extraN} extra` : ""}.
           </p>
+        )}
+        {canAdd > 0 && (
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-2">
+            <span>
+              <span className="block text-xs font-semibold text-fg">Add tanks to store more</span>
+              <span className="block text-[11px] text-muted">
+                Optional. This storm overflowed about {(Math.round(rec.overflowLitres / 100) * 100).toLocaleString("en-US")} L; each
+                extra 2,000 L tank keeps more of it.
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Extra tanks">
+              <button
+                onClick={() => setExtra(Math.max(0, extraN - 1))}
+                disabled={extraN === 0}
+                aria-label="One tank fewer"
+                className="grid h-7 w-7 place-items-center rounded-md border border-line text-fg disabled:opacity-40"
+              >
+                −
+              </button>
+              <span className="num w-8 text-center text-sm text-fg" aria-live="polite">
+                +{extraN}
+              </span>
+              <button
+                onClick={() => setExtra(Math.min(canAdd, extraN + 1))}
+                disabled={extraN >= canAdd}
+                aria-label="One more tank"
+                className="grid h-7 w-7 place-items-center rounded-md border border-line text-fg disabled:opacity-40"
+              >
+                +
+              </button>
+            </span>
+          </div>
         )}
         <p className="num mt-2 text-2xl font-semibold text-fg">{range(quote.lowRs, quote.highRs)}</p>
         <p className="text-xs text-muted">Indicative installed price, confirmed on the free site visit.</p>

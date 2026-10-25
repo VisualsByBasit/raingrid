@@ -137,7 +137,7 @@ export const PACKAGES: Record<PackageId, Package> = {
   standard: {
     id: "standard",
     name: "Standard",
-    summary: "Everything in Basic, plus new storage: a sealed tank sized for your roof (2,000 L by default).",
+    summary: "Everything in Basic, plus new storage: a sealed 2,000 L tank (two on roofs over 400 m²).",
     parts: ["gutterKit", "pipe", "tank2000", "plumber", "helper"],
     quantities: { pipeFeet: [20, 40], labourDays: [1, 2] },
     drinking: false,

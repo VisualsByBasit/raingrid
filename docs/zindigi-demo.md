@@ -7,7 +7,7 @@ RAIN//GRID now goes past the calculation: after replaying a storm, a household s
 ## The flow
 
 1. **Calculate.** Pick a roof, replay a recorded storm, get the Rain Plan (with the system diagram and the tanker comparison).
-2. **Get it installed (step 06).** The engine recommends Basic, Standard or Plus and a tank size (`src/lib/engine/recommend.ts`). The quote is priced line by line from `src/config/packages.ts` (`src/lib/quote.ts`), with 6 and 12 month instalments.
+2. **Get it installed.** The engine recommends Basic, Standard or Plus with one 2,000 L tank (two on roofs over 400 m²) and a recharge well for what the storm overflows; more tanks are an optional add (`src/lib/engine/recommend.ts`). The quote is priced line by line from `src/config/packages.ts` (`src/lib/quote.ts`), with 6 and 12 month instalments.
 3. **Roof check in 3D.** Orbit the roof, switch on satellite imagery, drag the T (tank spot) and D (downpipe) pins.
 4. **Request a free site visit.** A form builds a WhatsApp message with the roof area, quote, recharge add-on, pins and a link back to the roof.
 5. **Become a RainGrid installer.** A short application, also by WhatsApp.

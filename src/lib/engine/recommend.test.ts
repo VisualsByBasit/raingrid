@@ -1,16 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { MAX_TANKS, recommend, tankFor } from "./recommend";
+import { defaultTank, LARGE_ROOF_M2, MAX_TANKS, recommend } from "./recommend";
 
-describe("tank size", () => {
-  it("picks the smallest standard size that holds the storm", () => {
-    expect(tankFor(600)).toEqual({ size: 1000, count: 1 });
-    expect(tankFor(1000)).toEqual({ size: 1000, count: 1 });
-    expect(tankFor(1001)).toEqual({ size: 2000, count: 1 });
-    expect(tankFor(3500)).toEqual({ size: 2000, count: 2 });
-  });
-
-  it("never proposes more than the tank cap", () => {
-    expect(tankFor(50_000)).toEqual({ size: 2000, count: MAX_TANKS });
+describe("default tank", () => {
+  it("is one 2,000 L tank, two on roofs over 400 m²", () => {
+    expect(LARGE_ROOF_M2).toBe(400);
+    expect(defaultTank(120)).toEqual({ size: 2000, count: 1 });
+    expect(defaultTank(400)).toEqual({ size: 2000, count: 1 });
+    expect(defaultTank(401)).toEqual({ size: 2000, count: 2 });
   });
 });
 
@@ -19,6 +15,7 @@ describe("package recommendation", () => {
     const r = recommend({ areaM2: 100, stormLitres: 1500, tankFills: 0.75 });
     expect(r.package).toBe("basic");
     expect(r.tank).toBeNull();
+    expect(r.overflowLitres).toBe(0);
     expect(r.suggestRecharge).toBe(false);
   });
 
@@ -27,37 +24,57 @@ describe("package recommendation", () => {
     const r = recommend({ areaM2: 20, stormLitres: 300, tankFills: 0 });
     expect(r.package).toBe("basic");
     expect(r.tank).toBeNull();
+    expect(r.extraTanksUseful).toBe(0);
   });
 
-  it("adds a tank sized for what the current tank can't hold", () => {
-    // 3,500 L storm, 2,000 L tank (fills 1.75 times): 1,500 L short.
-    const r = recommend({ areaM2: 200, stormLitres: 3500, tankFills: 1.75 });
-    expect(r.package).toBe("standard");
-    expect(r.tank).toEqual({ size: 2000, count: 1 });
-    expect(r.newStorageLitres).toBe(2000);
-    expect(r.suggestRecharge).toBe(false);
-    // No tank at all: size for the whole storm.
-    expect(recommend({ areaM2: 200, stormLitres: 3500, tankFills: 0 }).tank).toEqual({ size: 2000, count: 2 });
+  it("does not size tanks on the storm: one 2,000 L tank, whatever the storm", () => {
+    const small = recommend({ areaM2: 200, stormLitres: 3500, tankFills: 1.75 });
+    expect(small.package).toBe("standard");
+    expect(small.tank).toEqual({ size: 2000, count: 1 });
+    expect(small.newStorageLitres).toBe(2000);
+    expect(small.overflowLitres).toBe(0);
+    expect(small.suggestRecharge).toBe(false);
+    // The record storm on a 250 m² roof still gets one tank, not three.
+    expect(recommend({ areaM2: 250, stormLitres: 26_000, tankFills: 13 }).tank).toEqual({ size: 2000, count: 1 });
   });
 
-  it("suggests a recharge well when the overflow is large", () => {
+  it("gives large roofs two tanks", () => {
+    const r = recommend({ areaM2: 450, stormLitres: 40_000, tankFills: 20 });
+    expect(r.tank).toEqual({ size: 2000, count: 2 });
+    expect(r.reasons.join(" ")).toContain("2 × 2,000 L tanks for a roof this size");
+  });
+
+  it("makes the overflow the reason for a recharge well", () => {
     const r = recommend({ areaM2: 250, stormLitres: 26_000, tankFills: 13 });
-    expect(r.package).toBe("standard");
-    expect(r.tank).toEqual({ size: 2000, count: 3 });
+    // 26,000 - 2,000 (current tank) - 2,000 (new) = 22,000 L
+    expect(r.overflowLitres).toBe(22_000);
     expect(r.suggestRecharge).toBe(true);
-    // 26,000 - 2,000 (current tank) - 6,000 (new) = 18,000 L
-    expect(r.reasons.join(" ")).toContain("18,000 L would still overflow");
+    expect(r.reasons.join(" ")).toContain("22,000 L still overflowed");
+    // Little overflow: no well suggested.
+    const little = recommend({ areaM2: 200, stormLitres: 4500, tankFills: 2.25 });
+    expect(little.overflowLitres).toBe(500);
+    expect(little.suggestRecharge).toBe(false);
+  });
+
+  it("offers extra tanks only as far as the overflow would fill them, within the cap", () => {
+    expect(recommend({ areaM2: 250, stormLitres: 26_000, tankFills: 13 }).extraTanksUseful).toBe(MAX_TANKS - 1);
+    expect(recommend({ areaM2: 450, stormLitres: 40_000, tankFills: 20 }).extraTanksUseful).toBe(MAX_TANKS - 2);
+    expect(recommend({ areaM2: 200, stormLitres: 5000, tankFills: 2.5 }).extraTanksUseful).toBe(1);
+    expect(recommend({ areaM2: 200, stormLitres: 3500, tankFills: 1.75 }).extraTanksUseful).toBe(0);
   });
 
   it("only recommends Plus for drinking water, always with a tank", () => {
-    expect(recommend({ areaM2: 200, stormLitres: 3500, tankFills: 1.75, wantsDrinking: true }).package).toBe("plus");
+    const r = recommend({ areaM2: 200, stormLitres: 3500, tankFills: 1.75, wantsDrinking: true });
+    expect(r.package).toBe("plus");
+    expect(r.tank).toEqual({ size: 2000, count: 1 });
     const small = recommend({ areaM2: 20, stormLitres: 300, tankFills: 0, wantsDrinking: true });
     expect(small.package).toBe("plus");
     expect(small.tank).toEqual({ size: 1000, count: 1 });
+    expect(small.overflowLitres).toBe(0);
   });
 
   it("treats bad numbers as zero", () => {
-    const r = recommend({ areaM2: 0, stormLitres: Number.NaN, tankFills: Number.NaN });
+    const r = recommend({ areaM2: Number.NaN, stormLitres: Number.NaN, tankFills: Number.NaN });
     expect(r.package).toBe("basic");
     expect(r.newStorageLitres).toBe(0);
   });
