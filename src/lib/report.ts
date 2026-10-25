@@ -1,12 +1,13 @@
 // The Rain Report's sections. Pure, so share links can carry the open
 // section (&view=report&tab=money) and tests can check it.
 
-export const REPORT_TABS = ["overview", "water", "money", "street", "install"] as const;
+export const REPORT_TABS = ["overview", "water", "season", "money", "street", "install"] as const;
 export type ReportTab = (typeof REPORT_TABS)[number];
 
 export const REPORT_TAB_LABEL: Record<ReportTab, string> = {
   overview: "Overview",
   water: "Water",
+  season: "Season",
   money: "Money",
   street: "Street",
   install: "Get it installed",

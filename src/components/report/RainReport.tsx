@@ -9,6 +9,7 @@ import TankerCompare from "../act/TankerCompare";
 import { GaugeBadge } from "../RainBits";
 import InstallTab from "./InstallTab";
 import OverviewTab from "./OverviewTab";
+import SeasonTab from "./SeasonTab";
 import StreetTab from "./StreetTab";
 import type { ReportProps } from "./types";
 import WaterTab from "./WaterTab";
@@ -164,7 +165,8 @@ export default function RainReport(p: ReportProps) {
               {p.tab === "overview" && (
                 <OverviewTab result={p.result} rain={p.rain} roof={p.roof} setup={p.setup} setSetup={p.setSetup} setTab={p.setTab} />
               )}
-              {p.tab === "water" && <WaterTab result={p.result} />}
+              {p.tab === "water" && <WaterTab result={p.result} rain={p.rain} roof={p.roof} />}
+              {p.tab === "season" && <SeasonTab result={p.result} roof={p.roof} />}
               {p.tab === "money" && <TankerCompare stored={p.result.split.tank} harvestable={p.result.net.mid} />}
               {p.tab === "street" && (
                 <StreetTab

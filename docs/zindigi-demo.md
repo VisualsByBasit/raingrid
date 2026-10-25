@@ -6,7 +6,7 @@ RAIN//GRID now goes past the calculation: after replaying a storm, a household s
 
 ## The flow
 
-1. **Calculate.** Pick a roof, replay a recorded storm, then open the Rain Report: Overview, Water (with the system diagram), Money (the tanker comparison), Street and Get it installed.
+1. **Calculate.** Pick a roof, replay a recorded storm, then open the Rain Report: Overview, Water (flow diagram and system diagram), Season, Money (the tanker comparison), Street and Get it installed.
 2. **Get it installed (a Report section).** The engine recommends Basic, Standard or Plus with one 2,000 L tank (two on roofs over 400 m²) and a recharge well for what the storm overflows; more tanks are an optional add (`src/lib/engine/recommend.ts`). The quote is priced line by line from `src/config/packages.ts` (`src/lib/quote.ts`), with 6 and 12 month instalments.
 3. **Roof check in 3D.** Orbit the roof, switch on satellite imagery, drag the T (tank spot) and D (downpipe) pins.
 4. **Request a free site visit.** A form builds a WhatsApp message with the roof area, quote, recharge add-on, pins and a link back to the roof.

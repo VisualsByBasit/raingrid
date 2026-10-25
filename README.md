@@ -17,7 +17,7 @@
 1. **Pick your roof on a 3D map.** Search your sector (F-7, G-11...) and tap your house. The area comes from its OpenStreetMap building outline, live from OpenFreeMap vector tiles. If your roof isn't mapped, draw it or type the area.
 2. **Replay a real storm.** Choose a recorded Islamabad storm; your roof gets the reading from the nearest rain gauge that reported it.
 3. **See what you can collect.** Rain falls on your roof, litres count up, and one card settles on what your roof can collect and how much overflowed your tank.
-4. **Open your Rain Report.** A full-screen report, in sections: Overview, Water (where each litre goes: your tank, a recharge well or down the nalah; recharge is potential routing, not measured infiltration), Money, Street (bring your neighbours, share one street link) and Get it installed. A link can open the Report directly on any section (`&view=report&tab=money`).
+4. **Open your Rain Report.** A full-screen report, in sections: Overview (tanks filling, three gauges), Water (a flow diagram of where each litre goes: your tank, a recharge well or down the nalah; recharge is potential routing, not measured infiltration), Season (a typical year from the WMO 1991 to 2020 monthly normals), Money, Street (bring your neighbours, share one street link) and Get it installed. A link can open the Report directly on any section (`&view=report&tab=money`).
 
 ## RainGrid as a service (Zindigi demo)
 
