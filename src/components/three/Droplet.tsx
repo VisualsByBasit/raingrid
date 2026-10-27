@@ -116,13 +116,10 @@ export default function Droplet({
   rig,
   tier,
   slot,
-  phoneBuffer = 256,
 }: {
   rig: Rig;
   tier: SceneTier;
   slot: Slot;
-  // Transmission buffer size on the low tier (256 or 512, see HeroScene).
-  phoneBuffer?: number;
 }) {
   const viewport = useThree((s) => s.viewport);
   const high = tier === "high";
@@ -348,7 +345,7 @@ export default function Droplet({
             color="#eaf8ff"
             backside
             samples={high ? 6 : 3}
-            resolution={high ? 1024 : phoneBuffer}
+            resolution={high ? 1024 : 256}
           />
         </mesh>
         <mesh ref={rim} geometry={geometry} material={rimMaterial} renderOrder={6} />

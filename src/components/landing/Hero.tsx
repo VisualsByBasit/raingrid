@@ -7,7 +7,8 @@ import { searchSectors, type Sector } from "@/data/sectors";
 import { reportProgress } from "../loader/progress";
 import { HERO } from "../story/copy";
 import { PLATE_URL } from "../three/assets";
-import { detectSceneMode, detectSceneTier, type SceneMode } from "../three/sceneMode";
+import { stepDown, tooSlow } from "@/lib/quality";
+import { detectQuality, detectSceneMode, logQuality, saveQuality, type SceneMode, type SceneTier } from "../three/sceneMode";
 import HeroBackdrop from "./HeroBackdrop";
 import LogoMark from "../LogoMark";
 import ThemeToggle from "../ThemeToggle";
@@ -15,8 +16,9 @@ import WeatherCard from "../WeatherCard";
 
 // Landing hero: the living Islamabad plate (one WebGL scene with the
 // refracting droplet), the 21 July 2025 headline and sector search. Lines
-// rise in with an 80 ms stagger once the loader has gone (`ready`). Low-end
-// devices get a CSS version, reduced motion a still.
+// rise in with an 80 ms stagger once the loader has gone (`ready`). The
+// scene runs at the device's quality tier (see lib/quality); low-end devices
+// get a CSS version, reduced motion a still.
 
 const HeroScene = dynamic(() => import("../three/HeroScene"), { ssr: false });
 
@@ -56,9 +58,32 @@ export default function Hero({
   const [q, setQ] = useState("");
   const hits = searchSectors(q, 5);
   const [mode, setMode] = useState<SceneMode>(detectSceneMode);
-  const [tier] = useState(detectSceneTier);
+  const [tier, setTier] = useState<SceneTier>(() => (detectQuality().quality === "high" ? "high" : "medium"));
   const [sceneReady, setSceneReady] = useState(false);
   const onSceneReady = useCallback(() => setSceneReady(true), []);
+  // The first ~2 s of frames are timed once. Clearly too slow steps the
+  // scene down one tier (medium, or the CSS hero) and it stays there: no
+  // stepping back up, so the scene never flips between settings. The
+  // outcome is cached for this GPU's next visit. A tier forced with
+  // ?quality is left alone.
+  const [probed, setProbed] = useState(() => detectQuality().forced);
+  const onProbe = useCallback(
+    (frameMs: number[]) => {
+      setProbed(true);
+      const { slow, median } = tooSlow(tier, frameMs);
+      if (!slow) {
+        logQuality(`probe ok on ${tier}: median frame ${median.toFixed(1)} ms over ${frameMs.length} frames`);
+        saveQuality(tier);
+        return;
+      }
+      const next = stepDown(tier);
+      logQuality(`probe slow on ${tier}: median frame ${median.toFixed(1)} ms over ${frameMs.length} frames, stepping down to ${next}`);
+      saveQuality(next);
+      if (next === "low") setMode("css");
+      else setTier(next);
+    },
+    [tier],
+  );
   const onSceneError = useCallback(() => {
     reportProgress("scene", 1);
     setMode("css");
@@ -99,7 +124,16 @@ export default function Hero({
             animate={{ opacity: sceneReady ? 1 : 0 }}
             transition={{ duration: 0.9, ease: EASE }}
           >
-            <HeroScene tier={tier} ready={ready} eventSource={header} anchor={slot} scroller={scroller} onReady={onSceneReady} />
+            <HeroScene
+              tier={tier}
+              ready={ready}
+              probe={sceneReady && !probed}
+              onProbe={onProbe}
+              eventSource={header}
+              anchor={slot}
+              scroller={scroller}
+              onReady={onSceneReady}
+            />
           </motion.div>
         </SceneBoundary>
       )}

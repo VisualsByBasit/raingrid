@@ -1,22 +1,26 @@
 "use client";
 
-import { Environment, Lightformer, PerformanceMonitor, useProgress } from "@react-three/drei";
+import { Environment, Lightformer, useProgress } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Noise, SMAA, Vignette } from "@react-three/postprocessing";
-import { Suspense, useEffect, useMemo, useState, type RefObject } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { reportProgress } from "../loader/progress";
 import Droplet, { type Slot } from "./Droplet";
 import Plate from "./Plate";
 import Rain from "./Rain";
 import { createRig, stepRig, type Rig } from "./rig";
-import type { SceneTier } from "./sceneMode";
+import { PROBE_MS, PROBE_SKIP } from "@/lib/quality";
+import { logQuality, type SceneTier } from "./sceneMode";
 
 // The hero's one WebGL scene: the living Islamabad plate, GPU rain and the
 // refracting droplet, with a light bloom, vignette and grain. It renders
 // on demand: every frame while the hero is on screen and the tab is
 // visible, a few frames a second while the loader still covers it, and not
 // at all otherwise. It is unmounted with the intro, so the map app never
-// runs it. Phones (low tier) render at 1x with no bloom or SMAA.
+// runs it. The medium tier (integrated GPUs, phones) renders at 1x with no
+// bloom or SMAA, a fixed 256 px droplet buffer, half the rain and 30 fps.
+// Nothing here adapts on its own: a tier only changes when the probe below
+// reports a slow start and the hero steps down, once.
 
 function CameraRig({ rig, scroller }: { rig: Rig; scroller: RefObject<HTMLElement | null> }) {
   useFrame((state, dt) => {
@@ -25,18 +29,20 @@ function CameraRig({ rig, scroller }: { rig: Rig; scroller: RefObject<HTMLElemen
   return null;
 }
 
-// The render clock for frameloop="demand". Full rate while the hero is
-// visible; about 8 fps while the loader covers it, enough to compile and
-// warm up the scene without competing with the loader; nothing when the
-// hero is off screen or the tab is hidden.
-function Driver({ active, warmOnly }: { active: boolean; warmOnly: boolean }) {
+// The render clock for frameloop="demand". Full rate (or the tier's cap)
+// while the hero is visible; about 8 fps while the loader covers it, enough
+// to compile and warm up the scene without competing with the loader;
+// nothing when the hero is off screen or the tab is hidden.
+function Driver({ active, warmOnly, fps }: { active: boolean; warmOnly: boolean; fps: number }) {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     if (!active) return;
+    // A few ms of slack so a 60 Hz display lands exactly on every 2nd frame.
+    const gap = warmOnly ? 120 : fps ? 1000 / fps - 4 : 0;
     let raf = 0;
     let last = 0;
     const tick = (t: number) => {
-      if (!warmOnly || t - last > 120) {
+      if (t - last >= gap) {
         last = t;
         invalidate();
       }
@@ -44,7 +50,33 @@ function Driver({ active, warmOnly }: { active: boolean; warmOnly: boolean }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [active, warmOnly, invalidate]);
+  }, [active, warmOnly, fps, invalidate]);
+  return null;
+}
+
+// Times the first ~2 s of real frames once the hero is showing (after a few
+// warm-up frames) and reports the gaps once. Pauses if the hero leaves the
+// screen; a gap of a second or more (tab switch) is not counted.
+function Probe({ active, onResult }: { active: boolean; onResult: (frameMs: number[]) => void }) {
+  const state = useRef({ seen: 0, last: 0, total: 0, frames: [] as number[], done: false });
+  useFrame(() => {
+    const p = state.current;
+    if (!active || p.done) return;
+    const now = performance.now();
+    const dt = now - p.last;
+    p.last = now;
+    if (++p.seen <= PROBE_SKIP || dt >= 1000) return;
+    p.frames.push(dt);
+    p.total += dt;
+    if (p.total >= PROBE_MS) {
+      p.done = true;
+      onResult(p.frames);
+    }
+  });
+  useEffect(() => {
+    // Restart the warm-up after a pause, so the first frame back is skipped.
+    if (!active) state.current.seen = Math.min(state.current.seen, PROBE_SKIP - 1);
+  }, [active]);
   return null;
 }
 
@@ -88,30 +120,17 @@ function Scene({
 }) {
   const size = useThree((s) => s.size);
   const phone = size.width < 768 || size.width / size.height < 0.8;
-  // Phones start the droplet's transmission buffer at 256 px and raise it to
-  // 512 only while the device holds 50 fps or more; it drops back if frames
-  // slow down, and settles on 256 after three flips. Desktop stays at 1024.
-  const [phoneBuffer, setPhoneBuffer] = useState(256);
   return (
     <>
-      {tier === "low" && (
-        <PerformanceMonitor
-          bounds={() => [45, 50]}
-          flipflops={3}
-          onIncline={() => setPhoneBuffer(512)}
-          onDecline={() => setPhoneBuffer(256)}
-          onFallback={() => setPhoneBuffer(256)}
-        />
-      )}
       <CameraRig rig={rig} scroller={scroller} />
       <Suspense fallback={null}>
         <Plate rig={rig} phone={phone} />
-        <Rain phone={phone} />
+        <Rain sparse={phone || tier !== "high"} />
         <Lights />
-        <Droplet rig={rig} tier={tier} slot={slot} phoneBuffer={phoneBuffer} />
+        <Droplet rig={rig} tier={tier} slot={slot} />
         {/* No MSAA: multisampled composer targets render black under
             Chrome's D3D11 backend on Windows. SMAA smooths the droplet's edge.
-            Phones skip SMAA and bloom; vignette and grain are one cheap pass. */}
+            Medium skips SMAA and bloom; vignette and grain are one cheap pass. */}
         {tier === "high" ? (
           <EffectComposer multisampling={0}>
             <SMAA />
@@ -138,8 +157,13 @@ export default function HeroScene({
   anchor,
   scroller,
   onReady,
+  probe,
+  onProbe,
 }: {
   tier: SceneTier;
+  // Time the first frames once the hero shows (once per visit).
+  probe: boolean;
+  onProbe: (frameMs: number[]) => void;
   // False while the loader still covers the hero.
   ready: boolean;
   // The hero element: pointer events and the canvas size come from it.
@@ -153,8 +177,16 @@ export default function HeroScene({
   const [slot, setSlot] = useState<Slot>({ x: 0.75, y: 0.5, h: 0.5 });
   const [onScreen, setOnScreen] = useState(true);
   const [tabVisible, setTabVisible] = useState(true);
-  // Device pixels per CSS pixel: 1 on phones, at most 1.5 elsewhere.
-  const [dpr] = useState(() => (tier === "low" ? 1 : Math.min(window.devicePixelRatio || 1, 1.5)));
+  // Device pixels per CSS pixel: 1 on medium, at most 1.5 on high.
+  const dpr = tier === "high" ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+  const fps = tier === "high" ? 0 : 30;
+
+  useEffect(() => {
+    logQuality(
+      `applied ${tier}: dpr ${dpr}, bloom ${tier === "high" ? "on" : "off"}, droplet buffer ${tier === "high" ? 1024 : 256}, ` +
+        `rain ${tier === "high" ? "full" : "half"}, fps ${fps || "uncapped"}`,
+    );
+  }, [tier, dpr, fps]);
 
   // Loader: the textures' loading progress, until <Ready> reports 1.
   const { progress } = useProgress();
@@ -211,7 +243,8 @@ export default function HeroScene({
       style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
       aria-hidden
     >
-      <Driver active={onScreen && tabVisible} warmOnly={!ready} />
+      <Driver active={onScreen && tabVisible} warmOnly={!ready} fps={fps} />
+      {probe && <Probe active={ready && onScreen && tabVisible} onResult={onProbe} />}
       <Scene rig={rig} tier={tier} slot={slot} scroller={scroller} onReady={onReady} />
     </Canvas>
   );

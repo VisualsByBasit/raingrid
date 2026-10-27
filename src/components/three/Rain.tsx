@@ -120,8 +120,9 @@ function RainLayer({
   );
 }
 
-export default function Rain({ phone }: { phone: boolean }) {
-  const scale = phone ? 0.5 : 1;
+// Sparse: half the streaks (phones and the medium tier).
+export default function Rain({ sparse }: { sparse: boolean }) {
+  const scale = sparse ? 0.5 : 1;
   return (
     <>
       {/* Far layer: behind the droplet, so it shows through it. */}
